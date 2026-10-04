@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadQuran, quranReady, verifyQuran } from './lib/quran.js';
 import { verifyHadith } from './lib/hadith.js';
+import { checkText } from './lib/check.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -28,6 +29,13 @@ app.post('/api/verify/quran', (req, res) => {
   const result = verifyQuran(text);
   if (result.status === 'unavailable') return res.status(503).json(result);
   res.json(result);
+});
+
+app.post('/api/check', async (req, res) => {
+  const text = String(req.body?.text || '').slice(0, 8000);
+  if (!text.trim()) return res.status(400).json({ error: 'text is required' });
+  if (!quranReady()) return res.status(503).json({ error: 'Quran index is not loaded yet' });
+  res.json(await checkText(text));
 });
 
 app.post('/api/verify/hadith', async (req, res) => {
