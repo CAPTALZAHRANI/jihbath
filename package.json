@@ -12,9 +12,12 @@
     "build": "cd client && npm install && npm run build",
     "fetch:quran": "node scripts/fetch-quranpedia.js",
     "fetch:hadeeth": "node scripts/fetch-hadeethenc.js",
-    "build:quran": "node scripts/build-quran-index.js"
+    "build:quran": "node scripts/build-quran-index.js",
+    "build:hadeeth": "node scripts/build-hadeethenc-index.js",
+    "build:meaning": "node scripts/build-hadeethenc-embeddings.js"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.0",
     "express": "^5.2.1"
   }
 }

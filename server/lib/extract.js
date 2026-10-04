@@ -18,8 +18,12 @@ const PATTERNS = [
   // "قال رسول الله ﷺ: ..." / "أن النبي ﷺ قال: ..."
   { type: 'hadith', re: new RegExp(`(?:قال|يقول|وقال|ويقول|قول|عن)\\s*${PROPHET}\\s*(?:قال|أنه\\s*قال)?\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
   { type: 'hadith', re: new RegExp(`${PROPHET}\\s*(?:قال|يقول)\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
+  // Robust to a mistyped title ("قال رسوم الله ﷺ"): the salawat itself followed by a colon
+  { type: 'hadith', re: new RegExp(`(?:ﷺ|صلى\\s*الله\\s*عليه\\s*وسلم|صلّى\\s*الله\\s*عليه\\s*وسلّم)\\s*(?:قال|يقول|أنه\\s*قال)?\\s*[:：]\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
   // "في الحديث: ..." / "جاء في الحديث ..."
   { type: 'hadith', re: new RegExp(`(?:في|جاء\\s*في|ورد\\s*في|وفي)\\s*(?:الحديث|الأثر)(?:\\s*الشريف)?\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
+  // English: "The Prophet (ﷺ) said: ..." / "Allah's Messenger said ..."
+  { type: 'hadith', re: /(?:the\s+)?(?:Prophet(?:\s+Muhammad)?|Messenger\s+of\s+(?:Allah|God)|Allah's\s+Messenger)(?:\s*\((?:ﷺ|peace be upon him|pbuh|saw)\)|\s*ﷺ|,?\s*peace be upon him,?)?\s+(?:said|says|stated)\s*[:,]?\s*(?:"([^"]{3,600})"|“([^”]{3,600})”|["“]?([^."“”\n]{6,400}))/gi },
   // any other quotation of 3+ words: type unknown, checked against both
   { type: 'unknown', re: /«([^»]{3,600})»|"([^"]{3,600})"|“([^”]{3,600})”/g },
 ];

@@ -110,3 +110,8 @@ footer a { color: var(--muted); }
   .quote { font-size: 1.3rem; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.notice { border-inline-start: 3px solid var(--review); padding: 0.6rem 0.9rem; background: rgba(91, 149, 214, 0.1); border-radius: 6px; color: var(--paper); font-size: 0.95rem; margin: 0 0 1.25rem; }
+.source .text.en { direction: ltr; text-align: left; }
+.source .path { color: var(--gold); margin-top: 1rem; }
+.source a { color: var(--muted); }

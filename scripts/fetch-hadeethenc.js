@@ -8,7 +8,7 @@ const API = 'https://hadeethenc.com/api/v1';
 const LANGS = (process.env.HE_LANGS || 'ar,en').split(',');
 const DELAY = Number(process.env.HE_DELAY_MS || 300);
 const PER_PAGE = 100;
-const OUT = path.resolve('data/raw/hadeethenc');
+const OUT = path.resolve(process.env.HADEETHENC_DIR || 'data', 'raw/hadeethenc');
 const UA = 'JIHBATH/0.1 (+https://github.com/CAPTALZAHRANI/jihbath)';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const STATUS = {
   exact: 'ثابت ومطابق',
@@ -83,18 +83,43 @@ function HadithSource({ h }) {
   );
 }
 
+function HadeethEncSource({ he, translated, second }) {
+  if (!he?.text) return null;
+  return (
+    <div className="source">
+      {second && <div className="path">ومن مسار مستقل ثانٍ:</div>}
+      {translated && he.en?.text && <p className="text en" dir="ltr">{he.en.text}</p>}
+      <p className="text">{he.text}</p>
+      <div className="verdict">الحكم: <q>{he.grade}</q>{he.attribution ? ` · ${he.attribution}` : ''}</div>
+      <span>
+        <a href={he.url} target="_blank" rel="noreferrer">موسوعة الأحاديث النبوية</a>
+        {translated && he.match === 'meaning'
+          ? ` · مطابقة بالمعنى مع الترجمة المعتمدة (تشابه ${Math.round(he.similarity * 100)}%)، ثم رُدّ إلى أصله العربي`
+          : translated ? ' · طوبق الاقتباس مع الترجمة الإنجليزية المعتمدة، ثم رُدّ إلى أصله العربي' : ''}
+      </span>
+    </div>
+  );
+}
+
 function Claim({ c }) {
-  const ops = c.quran?.ops || c.hadith?.lead?.ops;
+  const ops = c.meaning ? null : (c.quran?.ops || c.hadith?.lead?.ops || c.hadeethenc?.ops);
   const label = c.misattributed && c.status === 'variant' ? 'ثابت، ونسبته خاطئة'
     : c.merged ? 'آيتان دُمجتا في اقتباس واحد'
+    : c.meaning && c.status === 'variant' ? 'ثابت، ومطابق بالمعنى'
+    : c.meaning && c.status === 'review' ? 'قريب في المعنى، يحتاج مراجعة'
     : STATUS[c.status];
   return (
     <li className="claim" style={{ '--c': `var(--${c.status})` }}>
       <span className="badge"><span className="dot" style={{ background: 'var(--c)' }} />{label}</span>
-      <span className="kind">{c.type === 'quran' ? 'نُقل آيةً' : c.type === 'hadith' ? 'نُقل حديثًا' : 'نص منقول'}</span>
-      <p className="quote">{ops && c.status !== 'not_found' ? <Diff ops={ops} /> : c.text}</p>
+      <span className="kind">{c.type === 'quran' ? 'نُقل آيةً' : c.type === 'hadith' ? 'نُقل حديثًا' : 'نص منقول'}{c.translated ? ' · مترجم' : ''}{c.paths === 2 ? ' · تحقق من مسارين مستقلين' : ''}</span>
+      <p className="quote" dir="auto">{ops && c.status !== 'not_found' ? <Diff ops={ops} /> : c.text}</p>
       {c.note && <p className="note">{c.note}</p>}
-      {c.kind === 'quran' ? <QuranSource q={c.quran} fragment={c.fragment} /> : <HadithSource h={c.hadith} />}
+      {c.kind === 'quran' ? <QuranSource q={c.quran} fragment={c.fragment} /> : (
+        <>
+          {c.hadith?.lead || !c.hadeethenc ? <HadithSource h={c.hadith} /> : null}
+          <HadeethEncSource he={c.hadeethenc} translated={c.translated} second={!!c.hadith?.lead} />
+        </>
+      )}
       {c.merged && <QuranSource q={c.merged.quran} fragment />}
     </li>
   );
@@ -105,6 +130,11 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [report, setReport] = useState(null);
+  const [heState, setHeState] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/health').then((r) => r.json()).then((d) => setHeState(d?.sources?.hadeethenc?.state)).catch(() => {});
+  }, []);
 
   async function check() {
     setBusy(true); setError(''); setReport(null);
@@ -128,6 +158,10 @@ export default function App() {
       </header>
 
       <p className="lede">الصق نصًّا دعويًّا، فيستخرج جِهْبَاذ ما فيه من آيات وأحاديث، ويطابق كل واحد منها كلمةً كلمة مع مصادره المعتمدة، وينقل حكم أهل العلم كما ورد.</p>
+
+      {heState === 'initializing' && (
+        <p className="notice">موسوعة الأحاديث النبوية قيد التهيئة على الخادم، وهذا يحدث مرة واحدة فقط. التحقق من الآيات والأحاديث يعمل الآن عبر الموسوعة القرآنية والدرر السنية، ويُضاف المسار الثاني للأحاديث والمحتوى الإنجليزي تلقائيًا عند اكتمال التهيئة.</p>
+      )}
 
       <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="الصق النص هنا…" aria-label="النص المراد التحقق منه" />
       <div className="actions">

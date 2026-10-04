@@ -1,4 +1,5 @@
-FROM node:20-alpine
+# glibc image: the embedding runtime (onnxruntime-node) does not support Alpine/musl
+FROM node:20-slim
 
 WORKDIR /app
 
