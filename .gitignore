@@ -1,0 +1,45 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.key
+secrets/
+
+# Source data (downloaded by scripts, never committed)
+data/raw/
+data/dumps/
+*.dump
+
+# Generated indexes and embeddings
+data/index/
+data/embeddings/
+*.faiss
+*.index
+*.sqlite
+*.db
+
+# Cache of API responses
+cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
