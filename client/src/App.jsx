@@ -35,12 +35,12 @@ function ayahRef(ref) {
   return ref.from === ref.to ? `${ref.surahName}، الآية ${ref.from}` : `${ref.surahName}، الآيات ${ref.from}–${ref.to}`;
 }
 
-function QuranSource({ q }) {
+function QuranSource({ q, fragment }) {
   if (!q?.ref) return null;
   return (
     <div className="source">
       <p className="text">﴿{q.text}﴾</p>
-      <span>{ayahRef(q.ref)} · مصحف حفص، الموسوعة القرآنية</span>
+      <span>{ayahRef(q.ref)}{fragment ? ' · المقتبس جزء من الآية' : ''} · مصحف حفص، الموسوعة القرآنية</span>
       {q.alternatives?.length > 0 && (
         <span> · وورد اللفظ أيضًا في: {q.alternatives.map(ayahRef).join('، ')}</span>
       )}
@@ -85,14 +85,17 @@ function HadithSource({ h }) {
 
 function Claim({ c }) {
   const ops = c.quran?.ops || c.hadith?.lead?.ops;
-  const label = c.misattributed && c.status === 'variant' ? 'ثابت، ونسبته خاطئة' : STATUS[c.status];
+  const label = c.misattributed && c.status === 'variant' ? 'ثابت، ونسبته خاطئة'
+    : c.merged ? 'آيتان دُمجتا في اقتباس واحد'
+    : STATUS[c.status];
   return (
     <li className="claim" style={{ '--c': `var(--${c.status})` }}>
       <span className="badge"><span className="dot" style={{ background: 'var(--c)' }} />{label}</span>
       <span className="kind">{c.type === 'quran' ? 'نُقل آيةً' : c.type === 'hadith' ? 'نُقل حديثًا' : 'نص منقول'}</span>
       <p className="quote">{ops && c.status !== 'not_found' ? <Diff ops={ops} /> : c.text}</p>
       {c.note && <p className="note">{c.note}</p>}
-      {c.kind === 'quran' ? <QuranSource q={c.quran} /> : <HadithSource h={c.hadith} />}
+      {c.kind === 'quran' ? <QuranSource q={c.quran} fragment={c.fragment} /> : <HadithSource h={c.hadith} />}
+      {c.merged && <QuranSource q={c.merged.quran} fragment />}
     </li>
   );
 }
