@@ -56,16 +56,9 @@ export async function verifyHadith(quote, { minCoverage = 0.6 } = {}) {
   const weaks = matches.filter((m) => m.category === 'weak');
 
   let status, lead;
-  const isExact = (m) => m.ops.every((o) => o.type === 'equal');
-  let alsoIn = null;
   if (sahihayn || (strongs.length && strongs.length >= weaks.length)) {
-    // Lead with the authentic narration closest to the quoted wording;
-    // the Sahihayn wins ties, and is still cited when another wording is closer.
-    const pool = matches.filter((m) => m.sahihayn || m.category === 'strong');
-    pool.sort((a, b) => Number(isExact(b)) - Number(isExact(a)) || b.coverage - a.coverage || Number(b.sahihayn) - Number(a.sahihayn));
-    lead = pool[0];
-    if (!lead.sahihayn && sahihayn) alsoIn = sahihayn;
-    status = isExact(lead) ? 'exact' : 'variant';
+    lead = sahihayn || strongs[0];
+    status = lead.ops.every((o) => o.type === 'equal') ? 'exact' : 'variant';
   } else if (weaks.length && !strongs.length) {
     lead = weaks[0];
     status = 'weak';
@@ -77,7 +70,6 @@ export async function verifyHadith(quote, { minCoverage = 0.6 } = {}) {
   return {
     status,
     lead: pick(lead),
-    alsoIn: alsoIn ? pick(alsoIn) : null,
     groups: groups.map((g) => ({ rawi: g.rawi, narrations: g.narrations, ...pick(g.best) })),
     verdicts: { strong: strongs.length, weak: weaks.length, other: matches.length - strongs.length - weaks.length },
     checked: items.length,

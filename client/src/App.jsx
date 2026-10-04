@@ -21,6 +21,16 @@ function Diff({ ops }) {
   });
 }
 
+// Arabic number agreement for "claim"
+function claimsLabel(n) {
+  if (n === 1) return 'ادعاء واحد';
+  if (n === 2) return 'ادعاءان';
+  if (n >= 3 && n <= 10) return `${n} ادعاءات`;
+  return `${n} ادعاءً`;
+}
+
+const bare = (g) => String(g || '').replace(/^\[(.*)\]$/, '$1');
+
 function ayahRef(ref) {
   return ref.from === ref.to ? `${ref.surahName}، الآية ${ref.from}` : `${ref.surahName}، الآيات ${ref.from}–${ref.to}`;
 }
@@ -44,15 +54,18 @@ function HadithSource({ h }) {
     if (h?.status === 'not_found') return <div className="source">بُحث في الموسوعة الحديثية بالدرر السنية ({h.checked} نتيجة) دون نص مطابق.</div>;
     return null;
   }
-  const { lead, groups = [], verdicts } = h;
+  const { lead, groups = [], verdicts, alsoIn } = h;
   const others = groups.filter((g) => g.text !== lead.text || g.rawi !== lead.rawi);
   return (
     <div className="source">
       <p className="text">{lead.text}</p>
       <div className="verdict">
-        حكم {lead.muhaddith}: <q>{lead.grade}</q>
+        حكم {lead.muhaddith}: <q>{bare(lead.grade)}</q>
       </div>
       <span>{lead.source}{lead.number ? `، ${lead.number}` : ''}{lead.rawi && lead.rawi !== '-' ? ` · الراوي: ${lead.rawi}` : ''} · الدرر السنية</span>
+      {alsoIn && (
+        <div>وأصله في {alsoIn.source}{alsoIn.number ? `، ${alsoIn.number}` : ''} بلفظ: {alsoIn.text}</div>
+      )}
       {verdicts && (
         <div>أحكام الروايات المطابقة: {verdicts.strong} بالتصحيح، {verdicts.weak} بالتضعيف{verdicts.other ? `، ${verdicts.other} أخرى` : ''}</div>
       )}
@@ -61,7 +74,7 @@ function HadithSource({ h }) {
           <summary>روايات أخرى ({others.length})</summary>
           <ul>
             {others.map((g, i) => (
-              <li key={i}>{g.rawi && g.rawi !== '-' ? `${g.rawi}: ` : ''}{g.muhaddith} في {g.source} — <q>{g.grade}</q></li>
+              <li key={i}>{g.rawi && g.rawi !== '-' ? `${g.rawi}: ` : ''}{g.muhaddith} في {g.source} — <q>{bare(g.grade)}</q></li>
             ))}
           </ul>
         </details>
@@ -128,7 +141,7 @@ export default function App() {
       {report && report.total > 0 && (
         <>
           <div className="summary" aria-label="ملخص">
-            <span><strong>{report.total}</strong> ادعاءات</span>
+            <span><strong>{claimsLabel(report.total)}</strong></span>
             {ORDER.filter((s) => report.summary[s]).map((s) => (
               <span key={s}><span className="dot" style={{ background: `var(--${s})` }} />{STATUS[s]}: <strong>{report.summary[s]}</strong></span>
             ))}
