@@ -9,7 +9,10 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "build": "cd client && npm install && npm run build"
+    "build": "cd client && npm install && npm run build",
+    "fetch:quran": "node scripts/fetch-quranpedia.js",
+    "fetch:hadeeth": "node scripts/fetch-hadeethenc.js",
+    "build:quran": "node scripts/build-quran-index.js"
   },
   "dependencies": {
     "express": "^5.2.1"

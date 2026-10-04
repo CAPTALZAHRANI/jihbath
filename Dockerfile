@@ -11,5 +11,8 @@ RUN cd client && npm install
 COPY . .
 RUN cd client && npm run build
 
+# Local Quran index from Quranpedia's official dump (fetched fresh at build time)
+RUN (node scripts/fetch-quranpedia.js && node scripts/build-quran-index.js) || echo "WARNING: Quran index not built"
+
 ENV NODE_ENV=production
 CMD ["node", "server/index.js"]
