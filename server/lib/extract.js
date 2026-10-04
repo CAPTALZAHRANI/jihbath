@@ -24,7 +24,7 @@ const PATTERNS = [
   { type: 'unknown', re: /«([^»]{3,600})»|"([^"]{3,600})"|“([^”]{3,600})”/g },
 ];
 
-const clean = (s) => s.replace(/^[\s:،,.\-–—"«»“”]+|[\s:،,.\-–—"«»“”]+$/g, '').trim();
+const clean = (s) => s.replace(/^[\s:،,.\-–—"«»“”()]+|[\s:،,.\-–—"«»“”()]+$/g, '').trim();
 const words = (s) => s.split(/\s+/).filter(Boolean).length;
 
 export function extractClaims(text, { max = 12 } = {}) {

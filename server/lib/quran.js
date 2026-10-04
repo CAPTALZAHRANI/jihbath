@@ -1,7 +1,7 @@
 // Quran verification against the local Hafs index (built from Quranpedia's official dump).
 import fs from 'node:fs';
 import path from 'node:path';
-import { tokenize } from './arabic.js';
+import { tokenize, wordSim } from './arabic.js';
 import { lcsPairs, diffOps } from './align.js';
 
 let IDX = null;
@@ -46,7 +46,10 @@ function evaluate(q, win, idf) {
   const matched = pairs.length;
   const spanStart = matched ? pairs[0][1] : 0;
   const spanEnd = matched ? pairs[matched - 1][1] + 1 : 0;
-  const gaps = Math.max(0, spanEnd - spanStart - matched); // source words skipped inside the quote
+  // Source words skipped inside the span, minus the quote words they line up against:
+  // a misspelled word (السراط/الصراط) is a 1-to-1 replacement, not a gap.
+  const qInner = matched ? pairs[matched - 1][0] - pairs[0][0] + 1 - matched : 0;
+  const gaps = Math.max(0, spanEnd - spanStart - matched - qInner);
   // Scattered matches are penalised so a compact span wins over a few words spread across ayahs.
   const score = matched - 0.5 * gaps;
   const weight = pairs.reduce((t, [qi]) => t + idf(q.norm[qi]), 0); // rare words count more
@@ -78,7 +81,26 @@ export function verifyQuran(input, { minCoverage = 0.6 } = {}) {
   results.sort((a, b) => b.score - a.score || b.weight - a.weight || a.covered.length - b.covered.length || a.win.length - b.win.length);
 
   const best = results[0];
-  const coverage = best ? (best.matched - 0.5 * best.gaps) / q.norm.length : 0;
+  // A misspelled word that closely resembles the source word earns partial credit,
+  // so short quotes with one typo (السراط ← الصراط) are still found.
+  let simBonus = 0;
+  if (best?.pairs.length) {
+    const qi0 = best.pairs[0][0], si0 = best.pairs[0][1];
+    for (let k = 0; k < best.pairs.length; k++) {
+      const [qi, si] = best.pairs[k];
+      const [nq, ns] = best.pairs[k + 1] || [qi + 1 + (q.norm.length - 1 - qi), si + 1 + (q.norm.length - 1 - qi)];
+      const qGap = q.norm.slice(qi + 1, nq), sGap = best.sNorm.slice(si + 1, ns);
+      for (let t = 0; t < Math.min(qGap.length, sGap.length); t++) {
+        const sim = wordSim(qGap[t], sGap[t]);
+        if (sim >= 0.6) simBonus += 0.5 * sim;
+      }
+    }
+    for (let t = 1; t <= Math.min(qi0, si0); t++) { // leading misspelled words
+      const sim = wordSim(q.norm[qi0 - t], best.sNorm[si0 - t]);
+      if (sim >= 0.6) simBonus += 0.5 * sim;
+    }
+  }
+  const coverage = best ? Math.min(1, (best.matched - 0.5 * best.gaps + simBonus) / q.norm.length) : 0;
   if (!best || coverage < minCoverage) {
     return { status: 'not_found', coverage: Number(Math.max(0, coverage).toFixed(2)) };
   }

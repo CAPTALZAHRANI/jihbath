@@ -1,28 +1,17 @@
 // Hadith verification: search Dorar, align each result with the quote word by word,
 // group by narrator, prefer the Sahihayn, and derive one of the five JIHBATH statuses.
-import { tokenize, normalizeWord } from './arabic.js';
+import { tokenize, wordSim } from './arabic.js';
 import { lcsPairs, diffOps } from './align.js';
 import { searchDorar } from './dorar.js';
 import { classifyGrade, cleanGrade, isSahihayn } from './grades.js';
-
-// Letter-level similarity (0..1) between two words, ignoring diacritics
-function wordSim(a, b) {
-  a = normalizeWord(a); b = normalizeWord(b);
-  if (!a || !b) return 0;
-  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
-  for (let j = 1; j <= b.length; j++) d[0][j] = j;
-  for (let i = 1; i <= a.length; i++)
-    for (let j = 1; j <= b.length; j++)
-      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-  return 1 - d[a.length][b.length] / Math.max(a.length, b.length);
-}
 
 function compare(quote, text) {
   const q = tokenize(quote), s = tokenize(text);
   const pairs = lcsPairs(q.norm, s.norm);
   if (!pairs.length) return { coverage: 0, ops: [], closeness: 0 };
   const first = pairs[0][1], last = pairs[pairs.length - 1][1] + 1;
-  const gaps = last - first - pairs.length;
+  const qInner = pairs[pairs.length - 1][0] - pairs[0][0] + 1 - pairs.length;
+  const gaps = Math.max(0, last - first - pairs.length - qInner); // replacements are not gaps
   const coverage = Math.max(0, (pairs.length - 0.5 * gaps) / q.norm.length);
   const lead = pairs[0][0], trail = q.norm.length - 1 - pairs[pairs.length - 1][0];
   const from = Math.max(0, first - lead), to = Math.min(s.norm.length, last + trail);
