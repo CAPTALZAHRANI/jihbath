@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { buildDocumented } from './documented.js';
 
 const STATUS = {
   exact: 'مطابق لمصدره',
@@ -183,6 +184,17 @@ export default function App() {
   const [error, setError] = useState('');
   const [report, setReport] = useState(null);
   const [heState, setHeState] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const documented = useMemo(() => (report?.total ? buildDocumented(report.source, report.claims) : ''), [report]);
+
+  async function copyDocumented() {
+    try { await navigator.clipboard.writeText(documented); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard blocked */ }
+  }
+  function downloadDocumented() {
+    const url = URL.createObjectURL(new Blob([documented], { type: 'text/plain;charset=utf-8' }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: 'jihbath-documented.txt' });
+    a.click(); URL.revokeObjectURL(url);
+  }
 
   useEffect(() => {
     fetch('/api/health').then((r) => r.json()).then((d) => setHeState(d?.sources?.hadeethenc?.state)).catch(() => {});
@@ -194,7 +206,7 @@ export default function App() {
       const r = await fetch('/api/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
-      setReport(data);
+      setReport({ ...data, source: text });
     } catch (e) {
       setError(`لم يكتمل التحقق: ${e.message}`);
     } finally {
@@ -241,9 +253,22 @@ export default function App() {
         </>
       )}
 
+      {report && report.total > 0 && (
+        <section className="documented" aria-label="النص الموثق">
+          <h2>النص الموثَّق</h2>
+          <p className="hint">نصّك كما كتبته، والتصحيحات في مواضعها مع توثيق مختصر بين معقوفين، جاهزًا للنشر. لا يُحذف منه شيء ولا يُولَّد فيه شيء: ما لم يثبت يبقى بلفظك ويُعلَّم بحكم العالم.</p>
+          <div className="doc-text" dir="auto">{documented}</div>
+          <div className="actions">
+            <button className="primary" onClick={copyDocumented}>{copied ? 'نُسخ ✓' : 'نسخ النص'}</button>
+            <button className="quiet" onClick={downloadDocumented}>تنزيل</button>
+          </div>
+        </section>
+      )}
+
       <footer>
         <p>جِهْبَاذ أداة ذكاء اصطناعي تنقل أحكام أهل العلم منسوبةً إليهم، ولا تُفتي ولا تجتهد في الحكم. راجع المصدر قبل الاعتماد.</p>
-        <p>المصادر: <a href="https://quranpedia.net">الموسوعة القرآنية</a> · <a href="https://dorar.net">الدرر السنية</a> · <a href="https://hadeethenc.com">موسوعة الأحاديث النبوية</a></p>
+        <p>المصادر: <a href="https://quranpedia.net">الموسوعة القرآنية</a> · <a href="https://quranenc.com">موسوعة القرآن الكريم</a> · <a href="https://dorar.net">الدرر السنية</a> · <a href="https://hadeethenc.com">موسوعة الأحاديث النبوية</a></p>
+        <p className="rights">© 2026 جِهْبَاذ · تطوير عبدالله الزهراني، مؤسس <a href="https://lcaptainai.captndx.com" target="_blank" rel="noreferrer">CAPTndx</a> · والنصوص المنقولة ملك مصادرها</p>
       </footer>
     </main>
   );
