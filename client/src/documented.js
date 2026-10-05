@@ -80,17 +80,40 @@ function fixMisattributedAyah(text, c) {
   return { from: c.attrStart, to: close, replacement, at: null, note: null };
 }
 
+// Two ayahs fused into one quote are written back as two ayahs, each in the mushaf's wording
+// and with its own place, instead of one quote with a note.
+function splitMergedAyahs(text, c) {
+  if (c.kind !== 'quran' || !c.merged || c.translated) return null;
+  const parts = c.merged.parts || [
+    { text: c.merged.first, quran: c.merged.firstQuran || c.quran },
+    { text: c.merged.part, quran: c.merged.quran },
+  ];
+  let from = c.start, to = c.end;
+  if ('﴿«"“({'.includes(text[from - 1] || '') && text[from - 1]) from--;
+  if ('﴾»"”)}'.includes(text[to] || '') && text[to]) to++;
+  const replacement = parts.map((p) => `﴿${sourceWords(p.quran?.ops) || p.text}﴾ [${ayahRef(p.quran?.ref)}]`).join('، ');
+  return { from, to, replacement, at: null, note: null };
+}
+
 export function buildDocumented(source, claims) {
   const text = String(source || '');
   const edits = [];
   for (const c of claims || []) {
     if (c.start == null || c.end == null || c.end < c.start) continue;
-    const fixed = fixMisattributedAyah(text, c);
+    const fixed = fixMisattributedAyah(text, c) || splitMergedAyahs(text, c);
     if (fixed) { edits.push(fixed); continue; }
     const { text: replacement, note } = rewrite(c);
-    let at = c.end;
+    let from = c.start, to = c.end, rep = replacement;
+    // A Quran quote always ends up between ﴿ ﴾: other quote marks are swapped, none are added
+    if (rep && c.kind === 'quran' && !c.translated && !c.merged) {
+      const opener = text[from - 1] || '', closer = text[to] || '';
+      if ('﴿'.includes(opener) && opener) { /* already ﴿ ﴾ */ }
+      else if ('«"“({'.includes(opener) && opener && '»"”)}'.includes(closer) && closer) { from--; to++; rep = `﴿${rep}﴾`; }
+      else rep = `﴿${rep}﴾`;
+    }
+    let at = to;
     while (at < text.length && CLOSERS.includes(text[at])) at++; // cite after the closing bracket/quote
-    edits.push({ from: c.start, to: c.end, replacement, at, note });
+    edits.push({ from, to, replacement: rep, at, note });
   }
   edits.sort((a, b) => b.from - a.from); // apply from the end so offsets stay valid
   let out = text;

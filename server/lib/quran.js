@@ -1,7 +1,7 @@
 // Quran verification against the local Hafs index (built from Quranpedia's official dump).
 import fs from 'node:fs';
 import path from 'node:path';
-import { tokenize, wordSim } from './arabic.js';
+import { tokenize, wordSim, wordsWithOffsets, findRuns } from './arabic.js';
 import { lcsPairs, diffOps } from './align.js';
 
 let IDX = null;
@@ -18,7 +18,16 @@ export function loadQuran(file = path.resolve('data/index/quran.json')) {
       inv.get(w).push(i);
     }
   });
-  IDX = { meta: { version: raw.version, source: raw.source }, names, ayahs, inv };
+  // 4-gram index over the whole mushaf in order (quotes may run across consecutive ayahs)
+  const grams = new Map();
+  const stream = [];
+  for (const a of ayahs) for (const w of a.norm) stream.push(w);
+  for (let i = 0; i + 4 <= stream.length; i++) {
+    const k = stream.slice(i, i + 4).join(' ');
+    if (!grams.has(k)) grams.set(k, []);
+    grams.get(k).push(i);
+  }
+  IDX = { meta: { version: raw.version, source: raw.source }, names, ayahs, inv, grams };
   return IDX;
 }
 
@@ -109,8 +118,13 @@ export function verifyQuran(input, { minCoverage = 0.6 } = {}) {
   // so "ليعبدوني" lines up against "لِيَعْبُدُونِ" as a replacement, not an addition.
   const lead = best.pairs[0][0];
   const trail = q.norm.length - 1 - best.pairs[best.pairs.length - 1][0];
-  const from = Math.max(0, best.spanStart - lead);
+  let from = Math.max(0, best.spanStart - lead);
   const to = Math.min(best.sNorm.length, best.spanEnd + trail);
+  // A quote that starts right after a particle of the same ayah («الناس من يعبد الله على حرف»
+  // for «وَمِنَ النَّاسِ مَن يَعْبُدُ…») drops words that carry the meaning: the particles are
+  // pulled back into the span, so they show as missing words instead of an "exact fragment".
+  const PARTICLES = new Set(['و', 'ف', 'ومن', 'من', 'في', 'وفي', 'ان', 'وان', 'فان', 'لا', 'ولا', 'ما', 'وما', 'فما', 'يا', 'ثم', 'او', 'بل', 'قد', 'لقد', 'ولقد', 'انما', 'الا', 'ان', 'لم', 'ولم', 'لن', 'ولن', 'كل', 'وكل', 'هل', 'اذا', 'واذا', 'فاذا']);
+  for (let k = 0; k < 2 && from > 0 && best.sAyah[from - 1] === best.sAyah[from] && PARTICLES.has(best.sNorm[from - 1]); k++) from--;
   const ops = diffOps(q.orig, best.sOrig.slice(from, to), best.pairs.map(([qi, si]) => [qi, si - from]));
   const exact = ops.every((o) => o.type === 'equal');
 
@@ -155,4 +169,18 @@ export function ayahByRef(surah, ayah) {
   if (!IDX) return null;
   const a = IDX.ayahs.find((x) => x.s === surah && x.a === ayah);
   return a ? { text: a.text, ref: { surah, surahName: IDX.names.get(surah), from: ayah, to: ayah } } : null;
+}
+
+// Ayahs written into the text with no «قال تعالى» and no brackets: verbatim runs of 5+ words
+// (so the basmala and short common phrases are not flagged) that are not already claims.
+export function findUnmarkedAyahs(text, taken = []) {
+  if (!IDX) return [];
+  const words = wordsWithOffsets(text);
+  const out = [];
+  for (const [a, b] of findRuns(words, IDX.grams, 4, 5)) {
+    const start = words[a].start, end = words[b - 1].end;
+    if (taken.some(([x, y]) => start < y && end > x)) continue;
+    out.push({ type: 'quran', unmarked: true, text: text.slice(start, end), start, end });
+  }
+  return out;
 }

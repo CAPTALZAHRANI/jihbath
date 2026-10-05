@@ -1,10 +1,10 @@
 // Full pipeline: text → claims → verification → report with the five JIHBATH statuses.
 import { extractClaims } from './extract.js';
 import { detectReferrals } from './scope.js';
-import { verifyQuran, ayahByRef } from './quran.js';
+import { verifyQuran, ayahByRef, findUnmarkedAyahs } from './quran.js';
 import { verifyQuranEnglish } from './quranenc.js';
 import { verifyHadith } from './hadith.js';
-import { verifyHadeethEnc, verifyByMeaning } from './hadeethenc.js';
+import { verifyHadeethEnc, verifyByMeaning, findUnmarkedHadiths } from './hadeethenc.js';
 
 // exact | variant | weak | not_found | review  (+ unavailable when a source cannot be reached)
 const fromQuran = (r) => (r.status === 'exact' || r.status === 'exact_fragment' ? 'exact' : r.status === 'variant' ? 'variant' : 'not_found');
@@ -25,7 +25,50 @@ function detectMerge(q) {
   const sameAyah = other.ref && q.ref && other.ref.surah === q.ref.surah && other.ref.from <= q.ref.to && other.ref.to >= q.ref.from;
   if (other.status === 'not_found' || other.status === 'too_short' || sameAyah || other.coverage < 0.85) return null;
   const first = words.slice(0, a).filter((x) => x.eq).map((x) => x.w).join(' ');
-  return { part, first, quran: other };
+  const firstQuran = first.split(' ').length >= 2 ? verifyQuran(first) : null;
+  return { part, first, firstQuran, quran: other };
+}
+
+// Ayahs from different places joined so loosely that none matches the whole quote
+// («ومنهم من يعبد الله على حرف ولم يكن له كفوا احد»), two, three or four of them: the quote is
+// cut into segments of 3+ words, each found on its own, consecutive ones in different places.
+function splitMerge(text) {
+  const words = String(text).trim().split(/\s+/);
+  const n = words.length;
+  if (n < 6 || n > 40) return null;
+  const cache = new Map();
+  const seg = (i, j) => {
+    const k = `${i}:${j}`;
+    if (!cache.has(k)) {
+      const r = verifyQuran(words.slice(i, j).join(' '));
+      cache.set(k, r.status !== 'not_found' && r.status !== 'too_short' && r.coverage >= 0.75 ? r : null);
+    }
+    return cache.get(k);
+  };
+  const sameAyah = (a, b) => a.ref.surah === b.ref.surah && a.ref.from <= b.ref.to && b.ref.from <= a.ref.to;
+  // best[j] = best segmentation of words[0..j)
+  const best = new Array(n + 1).fill(null);
+  best[0] = { score: 0, parts: [] };
+  for (let j = 3; j <= n; j++) {
+    for (let i = Math.max(0, j - 40); i <= j - 3; i++) {
+      const prev = best[i];
+      if (!prev || prev.parts.length >= 4) continue;
+      const r = seg(i, j);
+      if (!r) continue;
+      const last = prev.parts[prev.parts.length - 1];
+      if (last && sameAyah(last.quran, r)) continue;
+      const score = prev.score + r.coverage * (j - i) - 0.5; // fewer segments preferred
+      if (!best[j] || score > best[j].score) best[j] = { score, parts: [...prev.parts, { text: words.slice(i, j).join(' '), quran: r }] };
+    }
+  }
+  const res = best[n];
+  if (!res || res.parts.length < 2) return null;
+  const [first, ...rest] = res.parts;
+  return {
+    parts: res.parts,
+    first: first.text, firstQuran: first.quran,
+    part: rest.map((p) => p.text).join(' '), quran: rest[rest.length - 1].quran,
+  };
 }
 
 async function hadithOrUnavailable(text) {
@@ -84,6 +127,13 @@ async function checkClaim(claim) {
     if (['exact', 'variant', 'weak', 'review'].includes(h.status)) {
       return { ...out, status: 'review', kind: 'hadith', misattributed: true, note: 'نُسب إلى القرآن، وليس آية؛ ورد في كتب الحديث', hadith: h };
     }
+    const split = splitMerge(claim.text);
+    if (split) {
+      const quran = { ...split.firstQuran, ops: split.parts.flatMap((p) => p.quran.ops || []) };
+      const count = split.parts.length === 2 ? 'آيتان' : `${split.parts.length} آيات`;
+      return { ...out, status: 'variant', kind: 'quran', merged: split, quran,
+        note: `دُمجت هنا ${count} من مواضع مختلفة في اقتباس واحد` };
+    }
     return { ...out, status: 'not_found', kind: 'quran', quran: q };
   }
 
@@ -119,6 +169,12 @@ async function checkClaim(claim) {
 
 export async function checkText(text) {
   const claims = extractClaims(text);
+  // quotations written into the text with no marker at all
+  const span = (arr) => arr.map((c) => [c.start, c.end]);
+  const ayahs = findUnmarkedAyahs(text, span(claims));
+  const hadiths = findUnmarkedHadiths(text, span([...claims, ...ayahs]));
+  claims.push(...[...ayahs, ...hadiths].slice(0, Math.max(0, 20 - claims.length)));
+  claims.sort((a, b) => a.start - b.start);
   const referrals = detectReferrals(text);
   const results = [];
   for (const c of claims) results.push(await checkClaim(c)); // sequential: gentle on Dorar

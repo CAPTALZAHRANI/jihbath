@@ -161,7 +161,7 @@ function Claim({ c }) {
   return (
     <li className="claim" style={{ '--c': `var(--${c.status})` }}>
       <span className="badge"><span className="dot" style={{ background: 'var(--c)' }} />{label}</span>
-      <span className="kind">{c.type === 'question' ? 'سؤال' : c.type === 'quran' ? 'نُقل آيةً' : c.type === 'hadith' ? 'نُقل حديثًا' : 'نص منقول'}{c.translated ? ' · مترجم' : ''}{c.paths === 2 ? ' · تحقق من مسارين مستقلين' : ''}</span>
+      <span className="kind">{c.type === 'question' ? 'سؤال' : c.unmarked ? (c.type === 'quran' ? 'آية في النص دون علامة' : 'حديث في النص دون نسبة') : c.type === 'quran' ? 'نُقل آيةً' : c.type === 'hadith' ? 'نُقل حديثًا' : 'نص منقول'}{c.translated ? ' · مترجم' : ''}{c.paths === 2 ? ' · تحقق من مسارين مستقلين' : ''}</span>
       <p className="quote" dir="auto">{ops && c.status !== 'not_found'
         ? <Diff ops={ops} mergedWords={c.merged ? new Set(c.merged.part.split(/\s+/)) : null} />
         : c.text}</p>
@@ -173,7 +173,7 @@ function Claim({ c }) {
           <HadeethEncSource he={c.hadeethenc} translated={c.translated} second={!!c.hadith?.lead} />
         </>
       )}
-      {c.merged && <QuranSource q={c.merged.quran} fragment />}
+      {c.merged && (c.merged.parts ? c.merged.parts.slice(1).map((p, i) => <QuranSource key={i} q={p.quran} fragment />) : <QuranSource q={c.merged.quran} fragment />)}
     </li>
   );
 }

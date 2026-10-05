@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { tokenize } from './arabic.js';
+import { tokenize, wordsWithOffsets, findRuns } from './arabic.js';
 import { lcsPairs, diffOps } from './align.js';
 import { loadSemantic, semanticReady, searchByMeaning, meaningLevel, sharedWords } from './semantic.js';
 
@@ -30,7 +30,20 @@ export function loadHadeethEnc() {
   if (!fs.existsSync(FILE)) return false;
   const raw = JSON.parse(fs.readFileSync(FILE, 'utf8'));
   const items = raw.items.map((h) => ({ ...h, ar: tokenize(h.text), enTok: h.en ? enTokens(h.en.text) : { orig: [], norm: [] } }));
-  IDX = { items, byId: new Map(items.map((h) => [h.id, h])), invAr: invert(items, 'ar'), invEn: invert(items, 'enTok'), built_at: raw.built_at };
+  // 4-gram index over the hadith texts themselves (inside «…»), for unmarked quotations
+  const grams = new Map();
+  let pos = 0;
+  for (const h of items) {
+    const core = (String(h.text).match(/«([^»]+)»/) || [null, h.text])[1];
+    const n = tokenize(core).norm;
+    for (let i = 0; i + 4 <= n.length; i++) {
+      const k = n.slice(i, i + 4).join(' ');
+      if (!grams.has(k)) grams.set(k, []);
+      grams.get(k).push(pos + i);
+    }
+    pos += n.length + 10; // gap so runs never cross from one hadith into the next
+  }
+  IDX = { items, byId: new Map(items.map((h) => [h.id, h])), invAr: invert(items, 'ar'), invEn: invert(items, 'enTok'), built_at: raw.built_at, grams };
   state = 'ready';
   if (loadSemantic()) console.log('🧭 meaning-level index loaded');
   return true;
@@ -131,4 +144,18 @@ export async function verifyByMeaning(quote) {
     others: hits.slice(1).map((x) => ({ id: x.id, similarity: x.similarity, title: IDX.byId.get(x.id)?.title })),
     source: 'HadeethEnc.com — موسوعة الأحاديث النبوية',
   };
+}
+
+// Hadiths written into the text with no «قال رسول الله ﷺ»: verbatim runs of 6+ words
+// matching a hadith text in HadeethEnc (short stock phrases are not flagged).
+export function findUnmarkedHadiths(text, taken = []) {
+  if (!IDX?.grams) return [];
+  const words = wordsWithOffsets(text);
+  const out = [];
+  for (const [a, b] of findRuns(words, IDX.grams, 4, 6)) {
+    const start = words[a].start, end = words[b - 1].end;
+    if (taken.some(([x, y]) => start < y && end > x)) continue;
+    out.push({ type: 'hadith', unmarked: true, text: text.slice(start, end), start, end });
+  }
+  return out;
 }
