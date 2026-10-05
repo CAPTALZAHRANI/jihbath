@@ -54,7 +54,7 @@ function QuranSource({ q, fragment }) {
         </>
       )}
       <p className="text">﴿{q.text}﴾</p>
-      <span>{ayahRef(q.ref)}{fragment ? ' · المقتبس جزء من الآية' : ''} · مصحف حفص، الموسوعة القرآنية</span>
+      <span>{ayahRef(q.ref)}{fragment ? ' · المقتبس جزء من الآية' : ''} · مصحف حفص، <a href="https://quranpedia.net" target="_blank" rel="noreferrer">الموسوعة القرآنية</a></span>
       {q.alternatives?.length > 0 && (
         <span> · وورد اللفظ أيضًا في: {q.alternatives.map(ayahRef).join('، ')}</span>
       )}
@@ -84,7 +84,7 @@ function HadithSource({ h, he }) {
       <div className="verdict">
         حكم {lead.muhaddith}: <q>{bare(lead.grade)}</q>
       </div>
-      <span>{lead.source}{lead.number ? `، ${lead.number}` : ''}{lead.rawi && lead.rawi !== '-' ? ` · الراوي: ${lead.rawi}` : ''} · الدرر السنية</span>
+      <span>{lead.source}{lead.number ? `، ${lead.number}` : ''}{lead.rawi && lead.rawi !== '-' ? ` · الراوي: ${lead.rawi}` : ''} · <a href={`https://dorar.net/hadith/search?q=${encodeURIComponent(String(lead.text || '').replace(/[.\s]+$/, '').split(/\s+/).slice(0, 8).join(' '))}`} target="_blank" rel="noreferrer">الدرر السنية</a></span>
       {!lead.sahihayn && !alsoIn && sahihaynOf(he?.attribution) && (
         <div className="sahihayn">وأصله عند {sahihaynOf(he.attribution)}، وفق تخريج موسوعة الأحاديث النبوية</div>
       )}
@@ -269,7 +269,7 @@ export default function App() {
       <footer>
         <p>جِهْبَاذ أداة ذكاء اصطناعي تنقل أحكام أهل العلم منسوبةً إليهم، ولا تُفتي ولا تجتهد في الحكم. راجع المصدر قبل الاعتماد.</p>
         <p>المصادر: <a href="https://quranpedia.net">الموسوعة القرآنية</a> · <a href="https://quranenc.com">موسوعة القرآن الكريم</a> · <a href="https://dorar.net">الدرر السنية</a> · <a href="https://hadeethenc.com">موسوعة الأحاديث النبوية</a></p>
-        <p className="rights">© 2026 جِهْبَاذ <span className="sep">‖</span> JIHBATH · تطوير عبدالله الزهراني، مؤسس <a href="https://lcaptainai.captndx.com" target="_blank" rel="noreferrer">CAPTndx</a> · والنصوص المنقولة ملك مصادرها</p>
+        <p className="rights">© 2026 جِهْبَاذ <span className="sep">‖</span> JIHBATH · تطوير: عبدالله الزهراني – مؤسس <a href="https://lcaptainai.captndx.com" target="_blank" rel="noreferrer">CAPTndx</a> · النصوص والأحكام منقولة من مصادرها المذكورة مع كل نتيجة</p>
       </footer>
     </main>
   );
