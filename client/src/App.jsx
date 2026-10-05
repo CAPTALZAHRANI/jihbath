@@ -13,9 +13,12 @@ const ORDER = ['exact', 'variant', 'weak', 'not_found', 'review', 'refer', 'unav
 
 const SAMPLE = `إن العبادة غاية الخلق، قال تعالى: ﴿وما خلقت الجن والإنس إلا ليعبدوني﴾. وقال رسول الله ﷺ: «إنما الأعمال بالنيات». ويُروى أن النبي ﷺ قال: اطلبوا العلم ولو بالصين. ومن العبارات المتداولة «حب الوطن من الإيمان». وقال النبي ﷺ: إن الله مع الصابرين.`;
 
-function Diff({ ops }) {
+function Diff({ ops, mergedWords }) {
   return ops.map((o, i) => {
     if (o.type === 'equal') return <span key={i}>{o.said.join(' ')} </span>;
+    if (mergedWords && o.said.length && o.said.every((w) => mergedWords.has(w))) {
+      return <span key={i} className="merged" title="من آية أخرى">{o.said.join(' ')} </span>;
+    }
     if (o.type === 'replace') return <span key={i}><del>{o.said.join(' ')}</del><ins>{o.source.join(' ')}</ins> </span>;
     if (o.type === 'added') return <span key={i}><del>{o.said.join(' ')}</del> </span>;
     return <span key={i}><ins className="missing">{o.source.join(' ')}</ins> </span>;
@@ -58,7 +61,15 @@ function QuranSource({ q, fragment }) {
   );
 }
 
-function HadithSource({ h }) {
+// Which of the two Sahih collections HadeethEnc's takhrij names (for the lead line)
+function sahihaynOf(attr) {
+  const t = String(attr || '');
+  const b = /البخاري/.test(t), m = /مسلم/.test(t) || /متفق عليه/.test(t);
+  if (/متفق عليه/.test(t) || (b && m)) return 'البخاري ومسلم';
+  return b ? 'البخاري' : m ? 'مسلم' : null;
+}
+
+function HadithSource({ h, he }) {
   if (!h?.lead) {
     if (h?.status === 'unavailable') return <div className="source">الدرر السنية لا تستجيب الآن؛ أعد المحاولة بعد قليل.</div>;
     if (h?.status === 'not_found') return <div className="source">بُحث في الموسوعة الحديثية بالدرر السنية ({h.checked} نتيجة) دون نص مطابق.</div>;
@@ -73,6 +84,9 @@ function HadithSource({ h }) {
         حكم {lead.muhaddith}: <q>{bare(lead.grade)}</q>
       </div>
       <span>{lead.source}{lead.number ? `، ${lead.number}` : ''}{lead.rawi && lead.rawi !== '-' ? ` · الراوي: ${lead.rawi}` : ''} · الدرر السنية</span>
+      {!lead.sahihayn && !alsoIn && sahihaynOf(he?.attribution) && (
+        <div className="sahihayn">وأصله عند {sahihaynOf(he.attribution)}، وفق تخريج موسوعة الأحاديث النبوية</div>
+      )}
       {alsoIn && (
         <div>وأصله في {alsoIn.source}{alsoIn.number ? `، ${alsoIn.number}` : ''} بلفظ: {alsoIn.text}</div>
       )}
@@ -100,7 +114,10 @@ function HadeethEncSource({ he, translated, second }) {
       {second && <div className="path">ومن مسار مستقل ثانٍ:</div>}
       {translated && he.en?.text && <p className="text en" dir="ltr">{he.en.text}</p>}
       <p className="text">{he.text}</p>
-      <div className="verdict">الحكم: <q>{he.grade}</q>{he.attribution ? ` · ${he.attribution}` : ''}</div>
+      <div className="verdict">الحكم: <q>{he.grade}</q></div>
+      {he.attribution && (he.attribution.length <= 90
+        ? <div>{he.attribution}</div>
+        : <details><summary>{he.attribution.slice(0, 70)}… عرض التخريج كاملًا</summary><div>{he.attribution}</div></details>)}
       <span>
         <a href={he.url} target="_blank" rel="noreferrer">موسوعة الأحاديث النبوية</a>
         {translated && he.match === 'meaning'
@@ -122,11 +139,13 @@ function Claim({ c }) {
     <li className="claim" style={{ '--c': `var(--${c.status})` }}>
       <span className="badge"><span className="dot" style={{ background: 'var(--c)' }} />{label}</span>
       <span className="kind">{c.type === 'question' ? 'سؤال' : c.type === 'quran' ? 'نُقل آيةً' : c.type === 'hadith' ? 'نُقل حديثًا' : 'نص منقول'}{c.translated ? ' · مترجم' : ''}{c.paths === 2 ? ' · تحقق من مسارين مستقلين' : ''}</span>
-      <p className="quote" dir="auto">{ops && c.status !== 'not_found' ? <Diff ops={ops} /> : c.text}</p>
+      <p className="quote" dir="auto">{ops && c.status !== 'not_found'
+        ? <Diff ops={ops} mergedWords={c.merged ? new Set(c.merged.part.split(/\s+/)) : null} />
+        : c.text}</p>
       {c.note && <p className="note">{c.note}</p>}
       {c.kind === 'refer' ? null : c.kind === 'quran' ? <QuranSource q={c.quran} fragment={c.fragment} /> : (
         <>
-          {c.hadith?.lead || !c.hadeethenc ? <HadithSource h={c.hadith} /> : null}
+          {c.hadith?.lead || !c.hadeethenc ? <HadithSource h={c.hadith} he={c.hadeethenc} /> : null}
           <HadeethEncSource he={c.hadeethenc} translated={c.translated} second={!!c.hadith?.lead} />
         </>
       )}

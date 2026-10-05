@@ -15,8 +15,8 @@
   --unavailable: #8a93a8;
   --refer: #a98bd6;
 
-  --ui: 'Tajawal', 'Segoe UI', Tahoma, sans-serif;
-  --text: 'Tajawal', 'Segoe UI', Tahoma, sans-serif;
+  --ui: 'Amiri', 'Tajawal', 'Segoe UI', Tahoma, sans-serif; /* Amiri is a subset holding only ﴿ ﴾ */
+  --text: 'Amiri', 'Tajawal', 'Segoe UI', Tahoma, sans-serif;
   --mark: 'Reem Kufi', 'Tajawal', sans-serif; /* wordmark only — swap here */
   --latin: 'Cormorant Garamond', Georgia, serif;
 
@@ -116,3 +116,6 @@ footer a { color: var(--muted); }
 .source .text.en { direction: ltr; text-align: left; }
 .source .path { color: var(--gold); margin-top: 1rem; }
 .source a { color: var(--muted); }
+
+.quote .merged { color: var(--review); border-bottom: 2px dotted var(--review); }
+.source .sahihayn { color: var(--exact); margin: 0.2rem 0; }
