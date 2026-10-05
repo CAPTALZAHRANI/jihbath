@@ -99,7 +99,7 @@ async function run() {
     ['ادعاء ثابت بلا مصدر', `${noSource.length}`],
     ['امتناع صحيح عن الجزم (لا يُعرض المختلق ثابتًا)', `${negOk.length}/${negatives.length}`],
     ['أحاديث عربية تحققت من مسارين', `${twoPaths.length}/${arHadithFound.length}`],
-    ['متوسط زمن الحالة', `${(avgMs / 1000).toFixed(1)} ث`],
+    ['متوسط زمن الحالة (نتائج الدرر محفوظة مؤقتًا بعد أول تشغيل؛ الزمن الحي أطول)', `${(avgMs / 1000).toFixed(1)} ث`],
     ['إحالات صحيحة (المستوى د)', `${ran.filter((x) => x.tc.group === 'إحالة' && x.pass).length}/${ran.filter((x) => x.tc.group === 'إحالة').length}`],
   ];
 
