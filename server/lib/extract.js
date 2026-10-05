@@ -22,6 +22,8 @@ const PATTERNS = [
   { type: 'hadith', re: new RegExp(`(?:ﷺ|صلى\\s*الله\\s*عليه\\s*وسلم|صلّى\\s*الله\\s*عليه\\s*وسلّم)\\s*(?:قال|يقول|أنه\\s*قال)?\\s*[:：]\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
   // "في الحديث: ..." / "جاء في الحديث ..."
   { type: 'hadith', re: new RegExp(`(?:في|جاء\\s*في|ورد\\s*في|وفي)\\s*(?:الحديث|الأثر)(?:\\s*الشريف)?\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
+  // English Quran: "Allah says: ..." / "The Quran says ..."
+  { type: 'quran', re: /(?:(?:Allah|God)(?:\s*\((?:SWT|swt|the Exalted|Exalted|Glorified|subhanahu wa ta'ala)\))?\s+(?:says|said|states)(?:\s+in\s+(?:the\s+)?(?:Holy\s+)?(?:Quran|Qur'an|Qur’an))?|(?:the\s+)?(?:Holy\s+)?(?:Quran|Qur'an|Qur’an)\s+(?:says|states))\s*[:,]?\s*(?:"([^"]{3,600})"|“([^”]{3,600})”|["“]?([^."“”\n]{6,400}))/gi },
   // English: "The Prophet (ﷺ) said: ..." / "Allah's Messenger said ..."
   { type: 'hadith', re: /(?:the\s+)?(?:Prophet(?:\s+Muhammad)?|Messenger\s+of\s+(?:Allah|God)|Allah's\s+Messenger)(?:\s*\((?:ﷺ|peace be upon him|pbuh|saw)\)|\s*ﷺ|,?\s*peace be upon him,?)?\s+(?:said|says|stated)\s*[:,]?\s*(?:"([^"]{3,600})"|“([^”]{3,600})”|["“]?([^."“”\n]{6,400}))/gi },
   // any other quotation of 3+ words: type unknown, checked against both
@@ -43,7 +45,8 @@ export function extractClaims(text, { max = 12 } = {}) {
       const quote = m.slice(1).find((g) => g);
       if (!quote) continue;
       const q = clean(quote);
-      if (words(q) < 3) continue;
+      // explicitly attributed quotes may be very short («الدين النصيحة»); bare quotes need 3+ words
+      if (words(q) < (type === 'unknown' ? 3 : 2)) continue;
       const start = src.indexOf(quote, m.index);
       const end = start + quote.length;
       if (taken.some(([a, b]) => start < b && end > a)) continue;

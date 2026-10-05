@@ -39,6 +39,15 @@ function QuranSource({ q, fragment }) {
   if (!q?.ref) return null;
   return (
     <div className="source">
+      {q.translation && (
+        <>
+          <p className="text en" dir="ltr">{q.translation.text}</p>
+          <span>
+            <a href={q.translation.url} target="_blank" rel="noreferrer">{q.translation.title}</a>
+            {` · الإصدار ${q.translation.version} · QuranEnc.com · طوبق الاقتباس مع هذه الترجمة، ثم رُدّ إلى الآية في المصحف`}
+          </span>
+        </>
+      )}
       <p className="text">﴿{q.text}﴾</p>
       <span>{ayahRef(q.ref)}{fragment ? ' · المقتبس جزء من الآية' : ''} · مصحف حفص، الموسوعة القرآنية</span>
       {q.alternatives?.length > 0 && (

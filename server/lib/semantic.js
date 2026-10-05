@@ -75,7 +75,7 @@ export async function searchByMeaning(quote, k = 3) {
 // otherwise a different saying that merely sounds alike (حب الوطن ↔ حب الأنصار) slips through.
 const STOP = new Set('the and that this with from have will been were they them their there what when which while would could should shall upon unto said says your yours ours only even also into onto than then just like some such very more most much many each every other because about over under after before being does done doing make made allah prophet messenger peace blessings upon reported narrated'.split(' '));
 const stem = (w) => w.replace(/(ings|ing|ed|es|s)$/, '');
-const content = (t) => new Set(String(t || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length >= 4 && !STOP.has(w)).map(stem));
+const content = (t) => new Set(String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length >= 4 && !STOP.has(w)).map(stem));
 
 export function sharedWords(quote, chunk) {
   const a = content(quote), b = content(chunk);

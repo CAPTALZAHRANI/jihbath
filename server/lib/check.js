@@ -1,6 +1,7 @@
 // Full pipeline: text → claims → verification → report with the five JIHBATH statuses.
 import { extractClaims } from './extract.js';
-import { verifyQuran } from './quran.js';
+import { verifyQuran, ayahByRef } from './quran.js';
+import { verifyQuranEnglish } from './quranenc.js';
 import { verifyHadith } from './hadith.js';
 import { verifyHadeethEnc, verifyByMeaning } from './hadeethenc.js';
 
@@ -34,6 +35,36 @@ async function hadithOrUnavailable(text) {
 async function checkClaim(claim) {
   const out = { ...claim };
 
+  // Translated (English) claim: first the official translations of the Quran (QuranEnc),
+  // then HadeethEnc's official hadith translations
+  if (!/[\u0600-\u06FF]/.test(claim.text)) {
+    const qe = verifyQuranEnglish(claim.text);
+    const qeFound = (qe.status === 'exact' || qe.status === 'variant') && (claim.type === 'quran' || qe.coverage >= 0.85);
+    if (qeFound) {
+      const ar = ayahByRef(qe.surah, qe.ayah);
+      const quran = { ref: ar?.ref, text: ar?.text, ops: qe.ops, translation: qe.translation };
+      if (claim.type === 'hadith') {
+        return { ...out, status: 'variant', kind: 'quran', translated: true, misattributed: true, note: 'هذه ترجمة آية من القرآن الكريم، وليست حديثًا', quran };
+      }
+      return { ...out, status: qe.status, kind: 'quran', translated: true, quran };
+    }
+    const he = verifyHadeethEnc(claim.text);
+    // 1) the quote follows HadeethEnc's own translation word for word
+    if (he.status === 'exact' || he.status === 'variant') return { ...out, status: he.status, kind: 'hadith', translated: true, hadeethenc: he };
+    // 2) agreed design: translated text is matched by MEANING
+    const m = await verifyByMeaning(claim.text);
+    if (m.status === 'meaning') return { ...out, status: 'variant', kind: 'hadith', translated: true, meaning: true, hadeethenc: m };
+    if (m.status === 'meaning_possible') {
+      return { ...out, status: 'review', kind: 'hadith', translated: true, meaning: true, hadeethenc: m,
+        note: 'قريب في المعنى من حديث ثابت، لكن التشابه غير كافٍ للجزم بأنه هو؛ قد يكون قولًا آخر يشبهه' };
+    }
+    if (he.status === 'initializing' || m.status === 'initializing') {
+      return { ...out, status: 'unavailable', kind: 'hadith', translated: true, note: 'موسوعة الأحاديث النبوية قيد التهيئة على الخادم؛ أعد المحاولة لاحقًا' };
+    }
+    return { ...out, status: 'not_found', kind: 'hadith', translated: true, hadeethenc: he };
+  }
+
+
   if (claim.type === 'quran') {
     const q = verifyQuran(claim.text);
     if (q.status !== 'not_found' && q.status !== 'too_short') {
@@ -49,24 +80,6 @@ async function checkClaim(claim) {
       return { ...out, status: 'review', kind: 'hadith', misattributed: true, note: 'نُسب إلى القرآن، وليس آية؛ ورد في كتب الحديث', hadith: h };
     }
     return { ...out, status: 'not_found', kind: 'quran', quran: q };
-  }
-
-  // Translated (English) claim: matched against HadeethEnc's official translations
-  if (!/[\u0600-\u06FF]/.test(claim.text)) {
-    const he = verifyHadeethEnc(claim.text);
-    // 1) the quote follows HadeethEnc's own translation word for word
-    if (he.status === 'exact' || he.status === 'variant') return { ...out, status: he.status, kind: 'hadith', translated: true, hadeethenc: he };
-    // 2) agreed design: translated text is matched by MEANING
-    const m = await verifyByMeaning(claim.text);
-    if (m.status === 'meaning') return { ...out, status: 'variant', kind: 'hadith', translated: true, meaning: true, hadeethenc: m };
-    if (m.status === 'meaning_possible') {
-      return { ...out, status: 'review', kind: 'hadith', translated: true, meaning: true, hadeethenc: m,
-        note: 'قريب في المعنى من حديث ثابت، لكن التشابه غير كافٍ للجزم بأنه هو؛ قد يكون قولًا آخر يشبهه' };
-    }
-    if (he.status === 'initializing' || m.status === 'initializing') {
-      return { ...out, status: 'unavailable', kind: 'hadith', translated: true, note: 'موسوعة الأحاديث النبوية قيد التهيئة على الخادم؛ أعد المحاولة لاحقًا' };
-    }
-    return { ...out, status: 'not_found', kind: 'hadith', translated: true, hadeethenc: he };
   }
 
   // hadith or unknown: an ayah quoted as a hadith must be caught first

@@ -149,3 +149,10 @@ function refOf(win) {
   const a = IDX.ayahs[win[0]], b = IDX.ayahs[win[win.length - 1]];
   return { surah: a.s, surahName: IDX.names.get(a.s), from: a.a, to: b.a };
 }
+
+// The Arabic ayah for a reference (used when a translated quote is returned to its origin)
+export function ayahByRef(surah, ayah) {
+  if (!IDX) return null;
+  const a = IDX.ayahs.find((x) => x.s === surah && x.a === ayah);
+  return a ? { text: a.text, ref: { surah, surahName: IDX.names.get(surah), from: ayah, to: ayah } } : null;
+}

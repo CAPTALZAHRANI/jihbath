@@ -16,7 +16,7 @@ let state = 'missing'; // missing | initializing | ready | failed
 
 const enTokens = (s) => {
   const orig = String(s || '').split(/\s+/).filter(Boolean);
-  const pairs = orig.map((w) => [w, w.toLowerCase().replace(/[^a-z0-9']/g, '')]).filter(([, n]) => n);
+  const pairs = orig.map((w) => [w, w.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9']/g, '')]).filter(([, n]) => n);
   return { orig: pairs.map(([o]) => o), norm: pairs.map(([, n]) => n) };
 };
 
