@@ -1,5 +1,6 @@
 // Full pipeline: text → claims → verification → report with the five JIHBATH statuses.
 import { extractClaims } from './extract.js';
+import { detectReferrals } from './scope.js';
 import { verifyQuran, ayahByRef } from './quran.js';
 import { verifyQuranEnglish } from './quranenc.js';
 import { verifyHadith } from './hadith.js';
@@ -107,8 +108,12 @@ async function checkClaim(claim) {
 
 export async function checkText(text) {
   const claims = extractClaims(text);
+  const referrals = detectReferrals(text);
   const results = [];
   for (const c of claims) results.push(await checkClaim(c)); // sequential: gentle on Dorar
+  // Level (د): referred, never answered; kept in reading order with the claims
+  results.push(...referrals.filter((r) => !claims.some((c) => r.start >= c.start && r.end <= c.end)));
+  results.sort((a, b) => a.start - b.start);
   const summary = results.reduce((s, r) => ({ ...s, [r.status]: (s[r.status] || 0) + 1 }), {});
   return { claims: results, summary, total: results.length };
 }

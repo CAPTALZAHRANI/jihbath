@@ -7,8 +7,9 @@ const STATUS = {
   not_found: 'لم يُعثر عليه',
   review: 'يحتاج مراجعة مختص',
   unavailable: 'تعذّر الوصول إلى المصدر',
+  refer: 'خارج نطاق التحقق: يُحال إلى مختص',
 };
-const ORDER = ['exact', 'variant', 'weak', 'not_found', 'review', 'unavailable'];
+const ORDER = ['exact', 'variant', 'weak', 'not_found', 'review', 'refer', 'unavailable'];
 
 const SAMPLE = `إن العبادة غاية الخلق، قال تعالى: ﴿وما خلقت الجن والإنس إلا ليعبدوني﴾. وقال رسول الله ﷺ: «إنما الأعمال بالنيات». ويُروى أن النبي ﷺ قال: اطلبوا العلم ولو بالصين. ومن العبارات المتداولة «حب الوطن من الإيمان». وقال النبي ﷺ: إن الله مع الصابرين.`;
 
@@ -120,10 +121,10 @@ function Claim({ c }) {
   return (
     <li className="claim" style={{ '--c': `var(--${c.status})` }}>
       <span className="badge"><span className="dot" style={{ background: 'var(--c)' }} />{label}</span>
-      <span className="kind">{c.type === 'quran' ? 'نُقل آيةً' : c.type === 'hadith' ? 'نُقل حديثًا' : 'نص منقول'}{c.translated ? ' · مترجم' : ''}{c.paths === 2 ? ' · تحقق من مسارين مستقلين' : ''}</span>
+      <span className="kind">{c.type === 'question' ? 'سؤال' : c.type === 'quran' ? 'نُقل آيةً' : c.type === 'hadith' ? 'نُقل حديثًا' : 'نص منقول'}{c.translated ? ' · مترجم' : ''}{c.paths === 2 ? ' · تحقق من مسارين مستقلين' : ''}</span>
       <p className="quote" dir="auto">{ops && c.status !== 'not_found' ? <Diff ops={ops} /> : c.text}</p>
       {c.note && <p className="note">{c.note}</p>}
-      {c.kind === 'quran' ? <QuranSource q={c.quran} fragment={c.fragment} /> : (
+      {c.kind === 'refer' ? null : c.kind === 'quran' ? <QuranSource q={c.quran} fragment={c.fragment} /> : (
         <>
           {c.hadith?.lead || !c.hadeethenc ? <HadithSource h={c.hadith} /> : null}
           <HadeethEncSource he={c.hadeethenc} translated={c.translated} second={!!c.hadith?.lead} />
@@ -181,7 +182,7 @@ export default function App() {
       {error && <p className="error">{error}</p>}
 
       {report && report.total === 0 && (
-        <p className="empty">لا توجد في النص آيات أو أحاديث منقولة. ضع الآية بين ﴿ ﴾، أو الحديث بعد «قال رسول الله ﷺ».</p>
+        <p className="empty">لا توجد في النص آيات أو أحاديث منقولة. ضع الآية بين ﴿ ﴾، أو الحديث بعد «قال رسول الله ﷺ». وجِهْبَاذ يتحقق من النصوص المنقولة، ولا يجيب عن الأسئلة.</p>
       )}
 
       {report && report.total > 0 && (
