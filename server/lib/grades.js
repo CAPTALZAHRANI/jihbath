@@ -20,7 +20,7 @@ const ISNAD = [/(?:^|\s|\[)(?:إسناده|اسناده|سنده|إسناد)\s*(
 
 // Explicit fabrication only. "لا أصل له" and "باطل" depend on each scholar's usage and context,
 // so they stay with the general "weak" family; the verbatim verdict is always shown.
-const FABRICATED = [/موضوع/, /مكذوب/, /(^|\s)كذب(\s|$)/];
+const FABRICATED = [/(^|[\s\[«(])موضوعٌ?(?=$|[\s\]».،:؛)])/, /مكذوب/, /(^|\s)كذب(\s|$)/];
 
 const WEAK = [
   // any negated positive: غير صحيح، ليس بثابت، لا يصح، لم يثبت، ليس بحسن …

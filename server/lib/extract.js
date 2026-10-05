@@ -16,10 +16,10 @@ const PATTERNS = [
   // "قال تعالى: ..." / "يقول الله عز وجل: ..."
   { type: 'quran', re: new RegExp(`(?:قال|يقول|وقال|ويقول|قول|قوله)\\s*(?:الله\\s*)?${ALLAH}\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
   // "قال رسول الله ﷺ: ..." / "أن النبي ﷺ قال: ..."
-  { type: 'hadith', re: new RegExp(`(?:قال|يقول|وقال|ويقول|قول|عن)\\s*${PROPHET}\\s*(?:قال|أنه\\s*قال)?\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
-  { type: 'hadith', re: new RegExp(`${PROPHET}\\s*(?:قال|يقول)\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
+  { type: 'hadith', attr: true, re: new RegExp(`(?:قال|يقول|وقال|ويقول|قول|عن)\\s*${PROPHET}\\s*(?:قال|أنه\\s*قال)?\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
+  { type: 'hadith', attr: true, re: new RegExp(`${PROPHET}\\s*(?:قال|يقول)\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
   // Robust to a mistyped title ("قال رسوم الله ﷺ"): the salawat itself followed by a colon
-  { type: 'hadith', re: new RegExp(`(?:ﷺ|صلى\\s*الله\\s*عليه\\s*وسلم|صلّى\\s*الله\\s*عليه\\s*وسلّم)\\s*(?:قال|يقول|أنه\\s*قال)?\\s*[:：]\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
+  { type: 'hadith', attr: true, re: new RegExp(`(?:ﷺ|صلى\\s*الله\\s*عليه\\s*وسلم|صلّى\\s*الله\\s*عليه\\s*وسلّم)\\s*(?:قال|يقول|أنه\\s*قال)?\\s*[:：]\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
   // "في الحديث: ..." / "جاء في الحديث ..."
   { type: 'hadith', re: new RegExp(`(?:في|جاء\\s*في|ورد\\s*في|وفي)\\s*(?:الحديث|الأثر)(?:\\s*الشريف)?\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
   // English Quran: "Allah says: ..." / "The Quran says ..."
@@ -38,7 +38,7 @@ export function extractClaims(text, { max = 12 } = {}) {
   const claims = [];
   const taken = []; // [start, end] ranges already claimed
 
-  for (const { type, re } of PATTERNS) {
+  for (const { type, re, attr } of PATTERNS) {
     re.lastIndex = 0;
     let m;
     while ((m = re.exec(src))) {
@@ -51,7 +51,7 @@ export function extractClaims(text, { max = 12 } = {}) {
       const end = start + quote.length;
       if (taken.some(([a, b]) => start < b && end > a)) continue;
       taken.push([start, end]);
-      claims.push({ type, text: q, start, end });
+      claims.push({ type, text: q, start, end, ...(attr ? { attrStart: m.index } : {}) });
     }
   }
   return claims.sort((a, b) => a.start - b.start).slice(0, max);

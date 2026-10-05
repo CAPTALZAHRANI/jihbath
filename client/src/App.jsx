@@ -231,6 +231,7 @@ export default function App() {
       <div className="actions">
         <button className="primary" onClick={check} disabled={busy || !text.trim()}>{busy ? 'جارٍ التحقق…' : 'تحقّق من النص'}</button>
         <button className="quiet" onClick={() => { setText(SAMPLE); setReport(null); }}>جرّب نصًّا نموذجيًّا</button>
+        {(text || report) && <button className="quiet" onClick={() => { setText(''); setReport(null); setError(''); }}>مسح النص</button>}
         {busy && <span className="status-line">تُراجَع الأحاديث في الدرر السنية واحدًا واحدًا، وقد يستغرق ذلك ثواني.</span>}
       </div>
       {error && <p className="error">{error}</p>}
@@ -268,7 +269,7 @@ export default function App() {
       <footer>
         <p>جِهْبَاذ أداة ذكاء اصطناعي تنقل أحكام أهل العلم منسوبةً إليهم، ولا تُفتي ولا تجتهد في الحكم. راجع المصدر قبل الاعتماد.</p>
         <p>المصادر: <a href="https://quranpedia.net">الموسوعة القرآنية</a> · <a href="https://quranenc.com">موسوعة القرآن الكريم</a> · <a href="https://dorar.net">الدرر السنية</a> · <a href="https://hadeethenc.com">موسوعة الأحاديث النبوية</a></p>
-        <p className="rights">© 2026 جِهْبَاذ · تطوير عبدالله الزهراني، مؤسس <a href="https://lcaptainai.captndx.com" target="_blank" rel="noreferrer">CAPTndx</a> · والنصوص المنقولة ملك مصادرها</p>
+        <p className="rights">© 2026 جِهْبَاذ <span className="sep">‖</span> JIHBATH · تطوير عبدالله الزهراني، مؤسس <a href="https://lcaptainai.captndx.com" target="_blank" rel="noreferrer">CAPTndx</a> · والنصوص المنقولة ملك مصادرها</p>
       </footer>
     </main>
   );

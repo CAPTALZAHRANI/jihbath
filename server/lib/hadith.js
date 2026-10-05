@@ -108,8 +108,8 @@ function judge(quote, items, { minCoverage = 0.6 } = {}) {
     basis = 'disputed';
     status = 'review';
   } else if (negative) {
-    lead = fabs[0] || weaks[0];
-    basis = fabs.length ? 'graded_fabricated' : 'graded_weak';
+    lead = (fabs.length && !weaks.length) ? fabs[0] : (weaks[0] || fabs[0]);
+    basis = fabs.length && !weaks.length ? 'graded_fabricated' : 'graded_weak';
     status = 'weak';
   } else {
     lead = isnads[0] || matches[0];

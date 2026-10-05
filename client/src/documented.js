@@ -63,11 +63,30 @@ function rewrite(c) {
   }
 }
 
+// An ayah quoted as a hadith: the attribution itself is the error. The Quran is certain text,
+// so the attribution is corrected ("قال تعالى") and the ayah put between ﴿ ﴾ with its place —
+// and the author's original wording is kept in the note, so nothing is silently changed.
+function fixMisattributedAyah(text, c) {
+  if (c.kind !== 'quran' || !c.misattributed || c.translated || c.attrStart == null) return null;
+  let open = c.start, close = c.end;
+  if ('«"“'.includes(text[open - 1] || '')) open--;
+  if ('»"”'.includes(text[close] || '')) close++;
+  let attrEnd = open;
+  while (attrEnd > c.attrStart && /[\s:：]/.test(text[attrEnd - 1])) attrEnd--;
+  const original = text.slice(c.attrStart, attrEnd).trim();
+  const lead = /^و/.test(original) ? 'و' : '';
+  const words = sourceWords(c.quran?.ops) || c.text;
+  const replacement = `${lead}قال تعالى: ﴿${words}﴾ [${ayahRef(c.quran?.ref)} — صُحّحت النسبة، وكان في الأصل: «${original}»]`;
+  return { from: c.attrStart, to: close, replacement, at: null, note: null };
+}
+
 export function buildDocumented(source, claims) {
   const text = String(source || '');
   const edits = [];
   for (const c of claims || []) {
     if (c.start == null || c.end == null || c.end < c.start) continue;
+    const fixed = fixMisattributedAyah(text, c);
+    if (fixed) { edits.push(fixed); continue; }
     const { text: replacement, note } = rewrite(c);
     let at = c.end;
     while (at < text.length && CLOSERS.includes(text[at])) at++; // cite after the closing bracket/quote
