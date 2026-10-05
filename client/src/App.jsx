@@ -191,7 +191,7 @@ export default function App() {
     try { await navigator.clipboard.writeText(documented); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard blocked */ }
   }
   function downloadDocumented() {
-    const url = URL.createObjectURL(new Blob([documented], { type: 'text/plain;charset=utf-8' }));
+    const url = URL.createObjectURL(new Blob(['\uFEFF' + documented], { type: 'text/plain;charset=utf-8' }));
     const a = Object.assign(document.createElement('a'), { href: url, download: 'jihbath-documented.txt' });
     a.click(); URL.revokeObjectURL(url);
   }
