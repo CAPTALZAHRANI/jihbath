@@ -151,7 +151,7 @@ function Claim({ c }) {
   };
   const h = c.kind === 'hadith' && !c.meaning ? HADITH[c.basis] : null;
   const label = c.misattributed && c.status === 'variant' ? 'نصّه ثابت، ونسبته خاطئة'
-    : c.merged ? 'آيتان دُمجتا في اقتباس واحد'
+    : c.merged ? ((c.merged.parts?.length || 2) > 2 ? `${c.merged.parts.length} آيات دُمجت في اقتباس واحد` : 'آيتان دُمجتا في اقتباس واحد')
     : c.meaning ? (c.closeness === 'high' ? 'يوافق معنى حديث: الترجمة تحتاج مراجعة' : 'قريب في المعنى: يحتاج مراجعة')
     : Array.isArray(h) ? h[c.status === 'exact' ? 0 : 1]
     : h || STATUS[c.status];
@@ -167,13 +167,15 @@ function Claim({ c }) {
         : c.text}</p>
       {c.note && <p className="note">{c.note}</p>}
       {qiraat && <p className="note">إن كان الاقتباس بقراءة متواترة غير رواية حفص فقد يكون الفرق صحيحًا؛ والفصل فيه لمختص في القراءات.</p>}
-      {c.kind === 'refer' ? null : c.kind === 'quran' ? <QuranSource q={c.quran} fragment={c.fragment} /> : (
+      {c.kind === 'refer' ? null : c.kind === 'quran' ? <QuranSource q={c.quran} fragment={c.merged ? c.merged.firstQuran?.status === 'exact_fragment' : c.fragment} /> : (
         <>
           {c.hadith?.lead || !c.hadeethenc ? <HadithSource h={c.hadith} he={c.hadeethenc} /> : null}
           <HadeethEncSource he={c.hadeethenc} translated={c.translated} second={!!c.hadith?.lead} />
         </>
       )}
-      {c.merged && (c.merged.parts ? c.merged.parts.slice(1).map((p, i) => <QuranSource key={i} q={p.quran} fragment />) : <QuranSource q={c.merged.quran} fragment />)}
+      {c.merged && (c.merged.parts
+        ? c.merged.parts.slice(1).map((p, i) => <QuranSource key={i} q={p.quran} fragment={p.quran?.status === 'exact_fragment'} />)
+        : <QuranSource q={c.merged.quran} fragment={c.merged.quran?.status === 'exact_fragment'} />)}
     </li>
   );
 }
