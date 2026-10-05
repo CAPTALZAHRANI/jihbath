@@ -38,8 +38,8 @@ const CASES = [
   { id: 'H10', group: 'حديث', label: 'مختلق يشبه صحيحًا', text: 'قال رسول الله ﷺ: «من قرأ سورة الكهف يوم الأربعاء غفر له ذنب أربعين سنة»', expect: NEG },
 
   // ── المحتوى المترجم ───────────────────────────────────
-  { id: 'E1', group: 'مترجم', label: 'صيغة أخرى للمعنى', text: 'The Prophet (ﷺ) said: "Deeds are judged by their intentions"', expect: ['variant'] },
-  { id: 'E2', group: 'مترجم', label: 'تشابه متوسط', text: 'The Prophet (ﷺ) said: "Actions are only by intentions"', expect: ['review', 'variant'] },
+  { id: 'E1', group: 'مترجم', label: 'صيغة أخرى للمعنى (لا جزم بالترجمة)', text: 'The Prophet (ﷺ) said: "Deeds are judged by their intentions"', expect: ['review'] },
+  { id: 'E2', group: 'مترجم', label: 'تشابه متوسط', text: 'The Prophet (ﷺ) said: "Actions are only by intentions"', expect: ['review'] },
   { id: 'E3', group: 'مترجم', label: 'مختلق', text: 'The Prophet (ﷺ) said: "Love of one\u2019s homeland is part of faith"', expect: NEG },
   { id: 'E4', group: 'مترجم', label: 'مختلق', text: 'The Prophet (ﷺ) said: "Seek knowledge even if you have to go as far as China"', expect: NEG },
   { id: 'E5', group: 'مترجم', label: 'بلفظ الترجمة المعتمدة', text: 'The Prophet (ﷺ) said: "Verily, the reward of deeds depends on intentions"', expect: POS },

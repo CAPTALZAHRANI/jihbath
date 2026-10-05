@@ -54,10 +54,14 @@ async function checkClaim(claim) {
     if (he.status === 'exact' || he.status === 'variant') return { ...out, status: he.status, kind: 'hadith', translated: true, hadeethenc: he };
     // 2) agreed design: translated text is matched by MEANING
     const m = await verifyByMeaning(claim.text);
-    if (m.status === 'meaning') return { ...out, status: 'variant', kind: 'hadith', translated: true, meaning: true, hadeethenc: m };
-    if (m.status === 'meaning_possible') {
-      return { ...out, status: 'review', kind: 'hadith', translated: true, meaning: true, hadeethenc: m,
-        note: 'قريب في المعنى من حديث ثابت، لكن التشابه غير كافٍ للجزم بأنه هو؛ قد يكون قولًا آخر يشبهه' };
+    // Per the shari'a mentor: a meaning match must not merge "the hadith is established" with
+    // "this translation is accurate". The original's grade is shown from its source; whether the
+    // English wording is a faithful rendering is left to a qualified reviewer.
+    if (m.status === 'meaning' || m.status === 'meaning_possible') {
+      return { ...out, status: 'review', kind: 'hadith', translated: true, meaning: true, closeness: m.status === 'meaning' ? 'high' : 'medium', hadeethenc: m,
+        note: m.status === 'meaning'
+          ? 'النص الإنجليزي ترجمة لمعنى الحديث أدناه بحسب التشابه، والحكم المعروض حكم الأصل العربي من مصدره؛ أما دقة هذه الترجمة فتحتاج مراجعًا مؤهلًا.'
+          : 'قريب في المعنى من الحديث أدناه دون جزم بأنه هو؛ قد يكون قولًا آخر يشبهه. والحكم المعروض حكم الأصل العربي من مصدره.' };
     }
     if (he.status === 'initializing' || m.status === 'initializing') {
       return { ...out, status: 'unavailable', kind: 'hadith', translated: true, note: 'موسوعة الأحاديث النبوية قيد التهيئة على الخادم؛ أعد المحاولة لاحقًا' };
@@ -100,10 +104,17 @@ async function checkClaim(claim) {
   const paths = [h.status !== 'not_found' && h.status !== 'unavailable', heFound].filter(Boolean).length;
 
   // Dorar unreachable or silent, but HadeethEnc (authentic-only collection) has it
+  // HadeethEnc's own takhrij is a sourced fact: if it attributes the hadith to the Sahihayn,
+  // that settles a case where Dorar's first results disagree (e.g. weak side-chains).
+  const heSahihayn = heFound && /البخاري|مسلم|متفق عليه/.test(String(he.attribution || ''));
   if ((h.status === 'unavailable' || h.status === 'not_found') && heFound) {
-    return { ...out, status: he.status, kind: 'hadith', hadith: h, hadeethenc: he, paths };
+    return { ...out, status: he.status, kind: 'hadith', hadith: h, hadeethenc: he, paths, basis: heSahihayn ? 'sahihayn_he' : 'hadeethenc' };
   }
-  return { ...out, status: h.status, kind: 'hadith', hadith: h, hadeethenc: heFound ? he : null, paths };
+  if (h.status === 'review' && h.basis === 'disputed' && heSahihayn) {
+    const exact = (h.lead?.ops || []).every((o) => o.type === 'equal');
+    return { ...out, status: exact ? 'exact' : 'variant', kind: 'hadith', hadith: h, hadeethenc: he, paths, basis: 'sahihayn_he' };
+  }
+  return { ...out, status: h.status, kind: 'hadith', hadith: h, hadeethenc: heFound ? he : null, paths, basis: h.basis };
 }
 
 export async function checkText(text) {

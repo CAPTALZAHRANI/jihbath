@@ -80,29 +80,40 @@ function judge(quote, items, { minCoverage = 0.6 } = {}) {
     narrations: list.length,
   }));
 
-  // A grade belongs to a chain. The hadith is treated as established when it is in the
-  // Sahihayn, or when authentic verdicts are at least as many as weak ones. When weak
-  // verdicts outnumber authentic ones, we do not decide: it goes to specialist review.
-  const sahihayn = matches.find((m) => m.sahihayn);
-  const strongs = matches.filter((m) => m.category === 'strong');
-  const weaks = matches.filter((m) => m.category === 'weak');
-
-  let status, lead;
+  // Following the shari'a mentor's review: no verdict is computed by counting. The hadith is
+  // labelled only when the verdicts agree (or it is in the Sahihayn); any disagreement is
+  // shown as such and referred to a specialist. Verbatim verdicts are always displayed.
   const isExact = (m) => m.ops.every((o) => o.type === 'equal');
-  let alsoIn = null;
-  if (sahihayn || (strongs.length && strongs.length >= weaks.length)) {
-    // Lead with the authentic narration closest to the quoted wording;
-    // the Sahihayn wins ties, and is still cited when another wording is closer.
-    const pool = matches.filter((m) => m.sahihayn || m.category === 'strong');
-    pool.sort((a, b) => Number(isExact(b)) - Number(isExact(a)) || b.closeness - a.closeness || Number(b.sahihayn) - Number(a.sahihayn));
-    lead = pool[0];
-    if (!lead.sahihayn && sahihayn) alsoIn = sahihayn;
+  const sahihayn = matches.find((m) => m.sahihayn);
+  const of = (c) => matches.filter((m) => m.category === c);
+  const strongs = of('strong'), isnads = of('isnad'), weaks = of('weak'), fabs = of('fabricated');
+  const positive = strongs.length + isnads.length, negative = weaks.length + fabs.length;
+
+  // closest wording among the narrations graded positively (for display only)
+  const pool = matches.filter((m) => m.sahihayn || m.category === 'strong' || m.category === 'isnad');
+  pool.sort((a, b) => Number(isExact(b)) - Number(isExact(a)) || b.closeness - a.closeness || Number(b.sahihayn) - Number(a.sahihayn));
+
+  let status, basis, lead, alsoIn = null;
+  if (sahihayn) {
+    lead = pool[0] || sahihayn;
+    if (!lead.sahihayn) alsoIn = sahihayn;
+    basis = 'sahihayn';
     status = isExact(lead) ? 'exact' : 'variant';
-  } else if (weaks.length && !strongs.length) {
-    lead = weaks[0];
+  } else if (strongs.length && !negative) {
+    lead = pool[0];
+    basis = 'graded_authentic';
+    status = isExact(lead) ? 'exact' : 'variant';
+  } else if (positive && negative) {
+    lead = pool[0] || matches[0];
+    basis = 'disputed';
+    status = 'review';
+  } else if (negative) {
+    lead = fabs[0] || weaks[0];
+    basis = fabs.length ? 'graded_fabricated' : 'graded_weak';
     status = 'weak';
   } else {
-    lead = strongs[0] || weaks[0] || matches[0];
+    lead = isnads[0] || matches[0];
+    basis = isnads.length ? 'isnad_only' : 'not_explicit';
     status = 'review';
   }
 
@@ -111,7 +122,8 @@ function judge(quote, items, { minCoverage = 0.6 } = {}) {
     lead: pick(lead),
     alsoIn: alsoIn ? pick(alsoIn) : null,
     groups: groups.map((g) => ({ rawi: g.rawi, narrations: g.narrations, ...pick(g.best) })),
-    verdicts: { strong: strongs.length, weak: weaks.length, other: matches.length - strongs.length - weaks.length },
+    basis,
+    verdicts: { strong: strongs.length, isnad: isnads.length, weak: weaks.length, fabricated: fabs.length, other: matches.length - positive - negative },
     checked: items.length,
     source: 'dorar.net — الموسوعة الحديثية',
   };

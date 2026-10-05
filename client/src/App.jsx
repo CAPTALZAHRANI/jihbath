@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
 const STATUS = {
-  exact: 'ثابت ومطابق',
-  variant: 'ثابت بلفظ مختلف',
-  weak: 'لا يصح',
+  exact: 'مطابق لمصدره',
+  variant: 'وُجد بلفظ مختلف',
+  weak: 'نُقل تضعيفه',
   not_found: 'لم يُعثر عليه',
   review: 'يحتاج مراجعة مختص',
   unavailable: 'تعذّر الوصول إلى المصدر',
@@ -91,7 +91,13 @@ function HadithSource({ h, he }) {
         <div>وأصله في {alsoIn.source}{alsoIn.number ? `، ${alsoIn.number}` : ''} بلفظ: {alsoIn.text}</div>
       )}
       {verdicts && (
-        <div>أحكام الروايات المطابقة: {verdicts.strong} بالتصحيح، {verdicts.weak} بالتضعيف{verdicts.other ? `، ${verdicts.other} أخرى` : ''}</div>
+        <div>أحكام الروايات المطابقة: {[
+          verdicts.strong && `${verdicts.strong} بالتصحيح`,
+          verdicts.isnad && `${verdicts.isnad} بتصحيح الإسناد`,
+          verdicts.weak && `${verdicts.weak} بالتضعيف`,
+          verdicts.fabricated && `${verdicts.fabricated} بالوضع`,
+          verdicts.other && `${verdicts.other} أخرى`,
+        ].filter(Boolean).join('، ')}</div>
       )}
       {others.length > 0 && (
         <details>
@@ -114,7 +120,7 @@ function HadeethEncSource({ he, translated, second }) {
       {second && <div className="path">ومن مسار مستقل ثانٍ:</div>}
       {translated && he.en?.text && <p className="text en" dir="ltr">{he.en.text}</p>}
       <p className="text">{he.text}</p>
-      <div className="verdict">الحكم: <q>{he.grade}</q></div>
+      <div className="verdict">{translated ? 'حكم الأصل العربي' : 'الحكم'}: <q>{he.grade}</q></div>
       {he.attribution && (he.attribution.length <= 90
         ? <div>{he.attribution}</div>
         : <details><summary>{he.attribution.slice(0, 70)}… عرض التخريج كاملًا</summary><div>{he.attribution}</div></details>)}
@@ -130,11 +136,27 @@ function HadeethEncSource({ he, translated, second }) {
 
 function Claim({ c }) {
   const ops = c.meaning ? null : (c.quran?.ops || c.hadith?.lead?.ops || c.hadeethenc?.ops);
-  const label = c.misattributed && c.status === 'variant' ? 'ثابت، ونسبته خاطئة'
+  // Hadith badges describe what the sources say, never a verdict of our own
+  const HADITH = {
+    sahihayn: ['في الصحيحين، ومطابق', 'في الصحيحين، بلفظ مختلف'],
+    sahihayn_he: ['في الصحيحين، ومطابق', 'في الصحيحين، بلفظ مختلف'],
+    graded_authentic: ['نُقل تصحيحه، ومطابق', 'نُقل تصحيحه، بلفظ مختلف'],
+    hadeethenc: ['في موسوعة الأحاديث، ومطابق', 'في موسوعة الأحاديث، بلفظ مختلف'],
+    disputed: 'اختلفت أحكام العلماء: يُحال إلى مختص',
+    graded_weak: 'نُقل تضعيفه',
+    graded_fabricated: 'نُقل الحكم بوضعه',
+    isnad_only: 'نُقل تصحيح إسناده فقط: يُراجع مختص',
+    not_explicit: 'حكم غير صريح: يُراجع مختص',
+  };
+  const h = c.kind === 'hadith' && !c.meaning ? HADITH[c.basis] : null;
+  const label = c.misattributed && c.status === 'variant' ? 'نصّه ثابت، ونسبته خاطئة'
     : c.merged ? 'آيتان دُمجتا في اقتباس واحد'
-    : c.meaning && c.status === 'variant' ? 'ثابت، ومطابق بالمعنى'
-    : c.meaning && c.status === 'review' ? 'قريب في المعنى، يحتاج مراجعة'
-    : STATUS[c.status];
+    : c.meaning ? (c.closeness === 'high' ? 'يوافق معنى حديث: الترجمة تحتاج مراجعة' : 'قريب في المعنى: يحتاج مراجعة')
+    : Array.isArray(h) ? h[c.status === 'exact' ? 0 : 1]
+    : h || STATUS[c.status];
+  // Hafs is the reference; another mutawatir reading can legitimately differ
+  const qiraat = c.kind === 'quran' && c.status === 'variant' && !c.merged && !c.misattributed && !c.translated;
+
   return (
     <li className="claim" style={{ '--c': `var(--${c.status})` }}>
       <span className="badge"><span className="dot" style={{ background: 'var(--c)' }} />{label}</span>
@@ -143,6 +165,7 @@ function Claim({ c }) {
         ? <Diff ops={ops} mergedWords={c.merged ? new Set(c.merged.part.split(/\s+/)) : null} />
         : c.text}</p>
       {c.note && <p className="note">{c.note}</p>}
+      {qiraat && <p className="note">إن كان الاقتباس بقراءة متواترة غير رواية حفص فقد يكون الفرق صحيحًا؛ والفصل فيه لمختص في القراءات.</p>}
       {c.kind === 'refer' ? null : c.kind === 'quran' ? <QuranSource q={c.quran} fragment={c.fragment} /> : (
         <>
           {c.hadith?.lead || !c.hadeethenc ? <HadithSource h={c.hadith} he={c.hadeethenc} /> : null}

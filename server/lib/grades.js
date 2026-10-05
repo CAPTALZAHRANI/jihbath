@@ -14,11 +14,19 @@ export function cleanGrade(text) {
 // Verdicts that do not establish the wording as a Prophetic hadith
 const NOT_ATTRIBUTION = [/معناه\s*صحيح/, /موقوف/, /مقطوع/, /من\s*قول/];
 
+// "إسناده صحيح" judges the chain, not the hadith (a sound chain can still carry shudhudh or
+// an 'illah) — kept as its own category and never turned into "authentic hadith".
+const ISNAD = [/(?:^|\s|\[)(?:إسناده|اسناده|سنده|إسناد)\s*(?:صحيح|حسن|جيد|قوي|ثابت)/, /رجاله\s*(?:ثقات|رجال\s*الصحيح)/];
+
+// Explicit fabrication only. "لا أصل له" and "باطل" depend on each scholar's usage and context,
+// so they stay with the general "weak" family; the verbatim verdict is always shown.
+const FABRICATED = [/موضوع/, /مكذوب/, /(^|\s)كذب(\s|$)/];
+
 const WEAK = [
   // any negated positive: غير صحيح، ليس بثابت، لا يصح، لم يثبت، ليس بحسن …
   /(غير|ليس\s*ب?|لا|لم|ما)\s*(ال)?(صحيح|ثابت|ثبت|حسن|يصح|يثبت|صح)/, /لا\s*[أا]صل\s*له/, /ليس\s*[^،.]{0,15}?[أا]صل/, /ليس\s*بحديث/,
   /لم\s*[أا]قف\s*عليه/, /لم\s*[أا]جده/, /لا\s*[أا]عرفه/,
-  /موضوع/, /باطل/, /مكذوب/, /كذب/, /منكر/, /ضعيف/, /(^|\s|\[)واهٍ?(\s|\]|$)/, /شاذ/, /مقلوب/, /متروك/, /خطأ/,
+  /باطل/, /منكر/, /ضعيف/, /(^|\s|\[)واهٍ?(\s|\]|$)/, /شاذ/, /مقلوب/, /متروك/, /خطأ/,
 ];
 const STRONG = [/صحيح/, /حسن/, /متفق\s*عليه/, /ثابت/, /ثبت/, /جيد/];
 
@@ -26,7 +34,9 @@ export function classifyGrade(text) {
   const t = cleanGrade(text);
   if (!t) return 'unknown';
   if (NOT_ATTRIBUTION.some((r) => r.test(t))) return 'review';
-  if (WEAK.some((r) => r.test(t))) return 'weak';
+  if (WEAK.some((r) => r.test(t))) return FABRICATED.some((r) => r.test(t)) ? 'fabricated' : 'weak';
+  if (FABRICATED.some((r) => r.test(t))) return 'fabricated';
+  if (ISNAD.some((r) => r.test(t))) return 'isnad';
   if (STRONG.some((r) => r.test(t))) return 'strong';
   return 'review';
 }
