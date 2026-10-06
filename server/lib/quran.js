@@ -178,8 +178,36 @@ export function findUnmarkedAyahs(text, taken = []) {
   const words = wordsWithOffsets(text);
   const out = [];
   for (const [a, b] of findRuns(words, IDX.grams, 4, 5)) {
-    const start = words[a].start, end = words[b - 1].end;
+    let start = words[a].start, end = words[b - 1].end;
     if (taken.some(([x, y]) => start < y && end > x)) continue;
+    // A verbatim run may be only the correct part of a misquoted ayah («يا ايها الذين آمنو اتقو
+    // ربكم الذي خلقكم…» for «يا أيها الناس اتقوا ربكم…»): widen it word by word, up to the last
+    // word that still belongs to the same ayah, so the wrong words around it are checked too.
+    const base = verifyQuran(text.slice(start, end));
+    const matched = (r) => (r.coverage || 0) * r.ops.reduce((t, o) => t + o.said.length, 0);
+    const sameAyah = (r) => r.ref && base.ref && r.ref.surah === base.ref.surah && r.ref.from <= base.ref.from && r.ref.to >= base.ref.from;
+    // a word can join only if no punctuation separates it from the span (sentences are not crossed)
+    const free = (i, dir) => {
+      if (i < 0 || i >= words.length) return false;
+      if (taken.some(([x, y]) => words[i].start < y && words[i].end > x)) return false;
+      const gap = dir < 0 ? text.slice(words[i].end, words[i + 1].start) : text.slice(words[i - 1].end, words[i].start);
+      return !/[.،,:：;؛!؟?\n«»"“”﴿﴾(){}]/.test(gap);
+    };
+    let lo = a, hi = b;
+    for (const dir of [-1, 1]) {
+      let bestK = 0, bestM = matched(base);
+      for (let k = 1; k <= 8; k++) {
+        const i = dir < 0 ? a - k : b - 1 + k;
+        if (!free(i, dir)) break;
+        const s1 = dir < 0 ? words[i].start : words[lo].start, e1 = dir < 0 ? words[hi - 1].end : words[i].end;
+        const r = verifyQuran(text.slice(s1, e1));
+        if (!sameAyah(r)) break;
+        const m = matched(r);
+        if (m > bestM + 0.5) { bestM = m; bestK = k; } // the outermost word itself matched
+      }
+      if (dir < 0) lo = a - bestK; else hi = b + bestK;
+    }
+    start = words[lo].start; end = words[hi - 1].end;
     out.push({ type: 'quran', unmarked: true, text: text.slice(start, end), start, end });
   }
   return out;

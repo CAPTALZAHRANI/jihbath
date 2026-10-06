@@ -22,6 +22,8 @@ const PATTERNS = [
   // Hadith qudsi first: «يقول الله في الحديث القدسي» is a hadith, not an ayah
   { type: 'hadith', attr: true, re: new RegExp(`(?:قال|يقول|وقال|ويقول)\\s*(?:${NAMES}(?:\\s*${GLORY})?|${GLORY})\\s*(?:في\\s*(?:ال)?حديث\\s*(?:ال)?قدسيّ?|فيما\\s*يرويه\\s*عنه\\s*(?:نبيه|رسوله)\\s*${SALAWAT}?)\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
   { type: 'quran', attr: true, re: new RegExp(`(?:قال|يقول|وقال|ويقول|قول|قوله)\\s*${ALLAH}\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
+  // name first: «والله يقول: …» / «الله تعالى يقول: …» / «وربنا عز وجل يقول: …»
+  { type: 'quran', attr: true, re: new RegExp(`(?:^|[\\s.،:؛(«"“])(?:و|ف)?${NAMES}(?:\\s*${GLORY})?\\s*(?:يقول|قال)(?:\\s*في\\s*(?:كتابه(?:\\s*(?:الكريم|العزيز))?|محكم\\s*(?:التنزيل|كتابه)))?\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
   // «قال عليه السلام: …» / «يقول ﷺ: …»
   { type: 'hadith', attr: true, re: new RegExp(`(?:قال|يقول|وقال|ويقول|وقوله|قوله)\\s*${SALAWAT}\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
   // "قال رسول الله ﷺ: ..." / "أن النبي ﷺ قال: ..."
