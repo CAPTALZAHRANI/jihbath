@@ -12,7 +12,14 @@ const STATUS = {
 };
 const ORDER = ['exact', 'variant', 'weak', 'not_found', 'review', 'refer', 'unavailable'];
 
-const SAMPLE = `إن العبادة غاية الخلق، قال تعالى: ﴿وما خلقت الجن والإنس إلا ليعبدوني﴾. وقال رسول الله ﷺ: «إنما الأعمال بالنيات». ويُروى أن النبي ﷺ قال: اطلبوا العلم ولو بالصين. ومن العبارات المتداولة «حب الوطن من الإيمان». وقال النبي ﷺ: إن الله مع الصابرين.`;
+// One click shows every kind of finding: a missing word, merged ayahs without brackets, a hadith
+// with a wrong letter, a saying that is not established, a hadith quoted as Quran, a hadith written
+// with no attribution, a translated hadith, and a fatwa question that is referred.
+const SAMPLE = `وحين يقول الله تعالى: " ولكم في القصاص يا أولي الالباب " نفهم غاية التشريع. ويقول الباري عز وجل: ومنهم من يعبد الله على حرف ولم يكن له كفوا احد وما خلقت الجن والإنس إلا ليعبدون.
+وقال رسول الله ﷺ: «انا وكافل اليتيم كهاتان في الجنة». ويُروى: «اطلبوا العلم ولو بالصين». ويقول الله تعالى: " من اقتطع حق امرء مسلم بغير حق ".
+والنية مهمة فإنما الأعمال بالنيات وإنما لكل امرئ ما نوى.
+The Prophet (ﷺ) said: "Deeds are judged by their intentions".
+هل يجوز لي ترك الصلاة؟`;
 
 function Diff({ ops, mergedWords }) {
   return ops.map((o, i) => {
