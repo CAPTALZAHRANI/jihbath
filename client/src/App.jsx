@@ -150,14 +150,17 @@ function Claim({ c }) {
     not_explicit: 'حكم غير صريح: يُراجع مختص',
   };
   const h = c.kind === 'hadith' && !c.meaning ? HADITH[c.basis] : null;
-  const label = c.misattributed && c.status === 'variant' ? 'نصّه ثابت، ونسبته خاطئة'
+  const label = c.quotedAsAyah
+    ? (c.status === 'weak' ? 'حديث نُسب إلى القرآن، ونُقل تضعيفه' : c.status === 'review' ? 'حديث نُسب إلى القرآن، وفي حكمه ما يُراجع' : 'حديث نُسب إلى القرآن خطأً')
+    : c.misattributed && c.status === 'variant' ? 'نصّه ثابت، ونسبته خاطئة'
     : c.merged ? ((c.merged.parts?.length || 2) > 2 ? `${c.merged.parts.length} آيات دُمجت في اقتباس واحد` : 'آيتان دُمجتا في اقتباس واحد')
     : c.arabicMeaning ? 'قريب في معناه من حديث: يحتاج مراجعة'
     : c.meaning ? (c.closeness === 'high' ? 'يوافق معنى حديث: الترجمة تحتاج مراجعة' : 'قريب في المعنى: يحتاج مراجعة')
     : Array.isArray(h) ? h[c.status === 'exact' ? 0 : 1]
     : h || STATUS[c.status];
   // Hafs is the reference; another mutawatir reading can legitimately differ
-  const qiraat = c.kind === 'quran' && c.status === 'variant' && !c.merged && !c.misattributed && !c.translated;
+  // only where a word differs — a missing or extra word is not a matter of readings
+  const qiraat = c.kind === 'quran' && c.status === 'variant' && !c.merged && !c.misattributed && !c.translated && (c.quran?.ops || []).some((o) => o.type === 'replace');
 
   return (
     <li className="claim" style={{ '--c': `var(--${c.status})` }}>

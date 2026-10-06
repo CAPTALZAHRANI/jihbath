@@ -123,16 +123,27 @@ async function checkClaim(claim) {
       }
       return { ...out, status: fromQuran(q), kind: 'quran', fragment: q.status === 'exact_fragment', quran: q };
     }
-    const h = await hadithOrUnavailable(claim.text);
-    if (['exact', 'variant', 'weak', 'review'].includes(h.status)) {
-      return { ...out, status: 'review', kind: 'hadith', misattributed: true, note: 'نُسب إلى القرآن، وليس آية؛ ورد في كتب الحديث', hadith: h };
-    }
     const split = splitMerge(claim.text);
     if (split) {
       const quran = { ...split.firstQuran, ops: split.parts.flatMap((p) => p.quran.ops || []) };
       const count = split.parts.length === 2 ? 'آيتان' : `${split.parts.length} آيات`;
       return { ...out, status: 'variant', kind: 'quran', merged: split, quran,
         note: `دُمجت هنا ${count} من مواضع مختلفة في اقتباس واحد` };
+    }
+    // Not an ayah — is it a hadith quoted as Quran («يقول الله تعالى: من اقتطع حق امرئ مسلم…»)?
+    // Then it is judged as the hadith it is, and the wrong attribution is flagged.
+    const h = await hadithOrUnavailable(claim.text);
+    if (['exact', 'variant', 'weak', 'review'].includes(h.status)) {
+      const he = verifyHadeethEnc(claim.text);
+      const heFound = he.status === 'exact' || he.status === 'variant';
+      const heSahihayn = heFound && /البخاري|مسلم|متفق عليه/.test(String(he.attribution || ''));
+      let status = h.status, basis = h.basis;
+      if (h.status === 'review' && h.basis === 'disputed' && heSahihayn) {
+        status = (h.lead?.ops || []).every((o) => o.type === 'equal') ? 'exact' : 'variant';
+        basis = 'sahihayn_he';
+      }
+      return { ...out, status, basis, kind: 'hadith', misattributed: true, quotedAsAyah: true, hadith: h, hadeethenc: heFound ? he : null,
+        note: 'نُسب إلى القرآن، وليس آية؛ وهو حديث، وحكمه منقول أدناه من مصادره' };
     }
     return { ...out, status: 'not_found', kind: 'quran', quran: q };
   }

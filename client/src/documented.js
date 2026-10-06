@@ -5,6 +5,21 @@
 // author wrote it and only marked, with the scholar's verdict quoted.
 
 const CLOSERS = '﴾»"”)}';
+const OPENERS = '﴿«"“({';
+// Quote marks are often separated from the words by a space (` " من اقتطع … حق " `)
+function openerBefore(text, start) {
+  let i = start;
+  while (i > 0 && text[i - 1] === ' ') i--;
+  return OPENERS.includes(text[i - 1] || '') && text[i - 1] ? i - 1 : start;
+}
+function closerAfter(text, end) {
+  let i = end;
+  while (i < text.length && text[i] === ' ') i++;
+  if (!(CLOSERS.includes(text[i] || '') && text[i])) return end;
+  while (i < text.length && CLOSERS.includes(text[i])) i++;
+  return i;
+}
+
 const surahShort = (name) => String(name || '').replace(/^سورة\s+/, '');
 const ayahRef = (r) => r ? `${surahShort(r.surahName)}: ${r.from === r.to ? r.from : `${r.from}–${r.to}`}` : '';
 
@@ -69,9 +84,7 @@ function rewrite(c) {
 // and the author's original wording is kept in the note, so nothing is silently changed.
 function fixMisattributedAyah(text, c) {
   if (c.kind !== 'quran' || !c.misattributed || c.translated || c.attrStart == null) return null;
-  let open = c.start, close = c.end;
-  if ('«"“'.includes(text[open - 1] || '')) open--;
-  if ('»"”'.includes(text[close] || '')) close++;
+  const open = openerBefore(text, c.start), close = closerAfter(text, c.end);
   let attrEnd = open;
   while (attrEnd > c.attrStart && /[\s:：]/.test(text[attrEnd - 1])) attrEnd--;
   const original = text.slice(c.attrStart, attrEnd).trim();
@@ -89,11 +102,36 @@ function splitMergedAyahs(text, c) {
     { text: c.merged.first, quran: c.merged.firstQuran || c.quran },
     { text: c.merged.part, quran: c.merged.quran },
   ];
-  let from = c.start, to = c.end;
-  if ('﴿«"“({'.includes(text[from - 1] || '') && text[from - 1]) from--;
-  if ('﴾»"”)}'.includes(text[to] || '') && text[to]) to++;
+  const from = openerBefore(text, c.start), to = closerAfter(text, c.end);
   const replacement = parts.map((p) => `﴿${sourceWords(p.quran?.ops) || p.text}﴾ [${ayahRef(p.quran?.ref)}]`).join('، ');
   return { from, to, replacement, at: null, note: null };
+}
+
+// A hadith quoted as an ayah («يقول الله تعالى: من اقتطع…»). Established: the attribution is
+// corrected to the Prophet ﷺ, with the original kept in the note. Otherwise the author's words
+// stay, marked as a hadith (not an ayah) with what was reported about it.
+const BASIS_NOTE = {
+  graded_weak: 'نُقل تضعيفه', graded_fabricated: 'نُقل الحكم بوضعه', disputed: 'اختلفت فيه أحكام العلماء',
+  isnad_only: 'نُقل تصحيح إسناده فقط', not_explicit: 'حكمه غير صريح',
+};
+function fixHadithQuotedAsAyah(text, c) {
+  if (!c.quotedAsAyah) return null;
+  const established = ['exact', 'variant'].includes(c.status) && ['sahihayn', 'sahihayn_he', 'graded_authentic', 'hadeethenc'].includes(c.basis);
+  const at = closerAfter(text, c.end);
+  if (!established || c.attrStart == null) {
+    return { from: c.start, to: c.start, replacement: null, at, note: `⚠ ليس آية، بل حديث${BASIS_NOTE[c.basis] ? `: ${BASIS_NOTE[c.basis]}` : ''} — يُراجع مختص` };
+  }
+  const open = openerBefore(text, c.start);
+  let attrEnd = open;
+  while (attrEnd > c.attrStart && /[\s:：]/.test(text[attrEnd - 1])) attrEnd--;
+  const original = text.slice(c.attrStart, attrEnd).trim();
+  const lead = /^و/.test(original) ? 'و' : '';
+  const words = c.status === 'variant' ? sourceWords(c.hadith?.lead?.ops) : null;
+  const body = words || text.slice(c.start, c.end).trim();
+  const close = closerAfter(text, c.end);
+  const cite = sahihaynCitation(c) || 'موسوعة الأحاديث النبوية';
+  return { from: c.attrStart, to: close, at: null, note: null,
+    replacement: `${lead}قال رسول الله ﷺ: «${body}» [${cite} — صُحّحت النسبة، وكان في الأصل: «${original}»]` };
 }
 
 export function buildDocumented(source, claims) {
@@ -101,19 +139,18 @@ export function buildDocumented(source, claims) {
   const edits = [];
   for (const c of claims || []) {
     if (c.start == null || c.end == null || c.end < c.start) continue;
-    const fixed = fixMisattributedAyah(text, c) || splitMergedAyahs(text, c);
+    const fixed = fixMisattributedAyah(text, c) || splitMergedAyahs(text, c) || fixHadithQuotedAsAyah(text, c);
     if (fixed) { edits.push(fixed); continue; }
     const { text: replacement, note } = rewrite(c);
     let from = c.start, to = c.end, rep = replacement;
     // A Quran quote always ends up between ﴿ ﴾: other quote marks are swapped, none are added
     if (rep && c.kind === 'quran' && !c.translated && !c.merged) {
-      const opener = text[from - 1] || '', closer = text[to] || '';
-      if ('﴿'.includes(opener) && opener) { /* already ﴿ ﴾ */ }
-      else if ('«"“({'.includes(opener) && opener && '»"”)}'.includes(closer) && closer) { from--; to++; rep = `﴿${rep}﴾`; }
+      const o = openerBefore(text, from), cl = closerAfter(text, to);
+      if (o < from && text[o] === '﴿') { /* already ﴿ ﴾ */ }
+      else if (o < from && cl > to) { from = o; to = cl; rep = `﴿${rep}﴾`; }
       else rep = `﴿${rep}﴾`;
     }
-    let at = to;
-    while (at < text.length && CLOSERS.includes(text[at])) at++; // cite after the closing bracket/quote
+    const at = closerAfter(text, to); // cite after the closing bracket/quote
     edits.push({ from, to, replacement: rep, at, note });
   }
   edits.sort((a, b) => b.from - a.from); // apply from the end so offsets stay valid
