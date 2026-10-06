@@ -40,6 +40,7 @@ function sahihaynCitation(c) {
 function rewrite(c) {
   const en = c.translated;
   if (c.kind === 'refer') return { note: 'يُحال إلى جهة إفتاء معتمدة' };
+  if (c.athar) return { note: c.status === 'not_found' ? '⚠ قول صحابي، لم يُعثر عليه في المصادر' : '⚠ قول صحابي (أثر)، لا حديث مرفوع: يُراجع مختص' };
   if (c.status === 'not_found') return { note: en ? '⚠ not found in the approved sources' : '⚠ لم يُعثر عليه في المصادر المعتمدة' };
   if (c.status === 'unavailable') return { note: '⚠ تعذّر التحقق الآن' };
 

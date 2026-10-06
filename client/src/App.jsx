@@ -150,7 +150,8 @@ function Claim({ c }) {
     not_explicit: 'حكم غير صريح: يُراجع مختص',
   };
   const h = c.kind === 'hadith' && !c.meaning ? HADITH[c.basis] : null;
-  const label = c.quotedAsAyah
+  const label = c.athar ? (c.status === 'not_found' ? 'قول صحابي (أثر): لم يُعثر عليه' : 'قول صحابي (أثر)، لا حديث: يُراجع')
+    : c.quotedAsAyah
     ? (c.status === 'weak' ? 'حديث نُسب إلى القرآن، ونُقل تضعيفه' : c.status === 'review' ? 'حديث نُسب إلى القرآن، وفي حكمه ما يُراجع' : 'حديث نُسب إلى القرآن خطأً')
     : c.misattributed && c.status === 'variant' ? 'نصّه ثابت، ونسبته خاطئة'
     : c.merged ? ((c.merged.parts?.length || 2) > 2 ? `${c.merged.parts.length} آيات دُمجت في اقتباس واحد` : 'آيتان دُمجتا في اقتباس واحد')
@@ -165,7 +166,7 @@ function Claim({ c }) {
   return (
     <li className="claim" style={{ '--c': `var(--${c.status})` }}>
       <span className="badge"><span className="dot" style={{ background: 'var(--c)' }} />{label}</span>
-      <span className="kind">{c.type === 'question' ? 'سؤال' : c.unmarked ? (c.type === 'quran' ? 'آية في النص دون علامة' : 'حديث في النص دون نسبة') : c.type === 'quran' ? 'نُقل آيةً' : c.type === 'hadith' ? 'نُقل حديثًا' : 'نص منقول'}{c.translated ? ' · مترجم' : ''}{c.paths === 2 ? ' · تحقق من مسارين مستقلين' : ''}</span>
+      <span className="kind">{c.athar ? 'قول منسوب لصحابي' : c.type === 'question' ? 'سؤال' : c.unmarked ? (c.type === 'quran' ? 'آية في النص دون علامة' : 'حديث في النص دون نسبة') : c.type === 'quran' ? 'نُقل آيةً' : c.type === 'hadith' ? 'نُقل حديثًا' : 'نص منقول'}{c.translated ? ' · مترجم' : ''}{c.paths === 2 ? ' · تحقق من مسارين مستقلين' : ''}</span>
       <p className="quote" dir="auto">{ops && c.status !== 'not_found'
         ? <Diff ops={ops} mergedWords={c.merged ? new Set(c.merged.part.split(/\s+/)) : null} />
         : c.text}</p>

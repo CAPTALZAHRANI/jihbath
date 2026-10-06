@@ -47,6 +47,26 @@ export function extractClaims(text, { max = 12 } = {}) {
   const claims = [];
   const taken = []; // [start, end] ranges already claimed
 
+  // A quotation introduced by a companion («قال عبد الله بن عمر رضي الله عنهما: "…"»,
+  // «قام الصديق رضي الله عنه خطيبًا فقال: "…"») is a saying of that companion, not of the Prophet ﷺ.
+  const ATHAR_BEFORE = /(?:رضي\s*الله\s*عنه(?:ما|ا|م)?|رضيَ\s*اللهُ\s*عنه(?:ما|ا|م)?|الصديق|الفاروق|أمير\s*المؤمنين)[^«»"“”]{0,60}$/;
+  // What matters is who speaks, not who is mentioned: in «قال صلى الله عليه وسلم عن الصديقة بنت
+  // الصديق رضي الله عنها: "…"» the speaker is the Prophet ﷺ, and «رضي الله عنها» describes Aisha.
+  const PROPHET_SPEAKS = /^(?:\s*(?:ﷺ|صلى\s*الله\s*عليه\s*وسلم|عليه\s*(?:الصلاة\s*و)?السلام|رسول\s*الله|النبي|نبينا|المصطفى))/;
+  const companionBefore = (i) => {
+    const w = src.slice(Math.max(0, i - 120), i).replace(/[\u064B-\u0652]/g, '');
+    if (!ATHAR_BEFORE.test(w)) return false;
+    const verbs = [...w.matchAll(/(?:^|\s)(?:[وف])?(?:قال|قالت|يقول|تقول)(?=\s|$)/g)];
+    const last = verbs[verbs.length - 1];
+    if (last && PROPHET_SPEAKS.test(w.slice(last.index + last[0].length))) return false;
+    return true;
+  };
+  const prophetSpeaksBefore = (i) => {
+    const w = src.slice(Math.max(0, i - 120), i).replace(/[\u064B-\u0652]/g, '');
+    const verbs = [...w.matchAll(/(?:^|\s)(?:[وف])?(?:قال|يقول)(?=\s|$)/g)];
+    const last = verbs[verbs.length - 1];
+    return !!last && PROPHET_SPEAKS.test(w.slice(last.index + last[0].length));
+  };
   for (const { type, re, attr } of PATTERNS) {
     re.lastIndex = 0;
     let m;
@@ -64,7 +84,10 @@ export function extractClaims(text, { max = 12 } = {}) {
       const mStart = m.index, mEnd = m.index + m[0].length;
       if (taken.some(([a, b]) => mStart < b && mEnd > a)) continue;
       taken.push([mStart, mEnd]);
-      claims.push({ type, text: q, start, end, ...(attr ? { attrStart: m.index } : {}) });
+      const athar = type === 'unknown' && companionBefore(m.index);
+      // a bare quotation whose speaker is the Prophet ﷺ, with words in between («قال ﷺ عن عائشة…»)
+      const prophet = type === 'unknown' && !athar && prophetSpeaksBefore(m.index);
+      claims.push({ type: athar ? 'athar' : prophet ? 'hadith' : type, text: q, start, end, ...(attr ? { attrStart: m.index } : {}), ...(athar ? { athar: true } : {}) });
     }
   }
   return claims.sort((a, b) => a.start - b.start).slice(0, max);

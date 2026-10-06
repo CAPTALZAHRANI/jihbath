@@ -163,6 +163,11 @@ async function checkClaim(claim) {
   const [h, he] = [await hadithOrUnavailable(claim.text), verifyHadeethEnc(claim.text)];
   const heFound = he.status === 'exact' || he.status === 'variant';
   const paths = [h.status !== 'not_found' && h.status !== 'unavailable', heFound].filter(Boolean).length;
+  if (claim.athar) {
+    // a companion's saying: looked up the same way, but never presented as the Prophet's words
+    return { ...out, status: h.status === 'not_found' ? 'not_found' : 'review', kind: 'hadith', athar: true, hadith: h, hadeethenc: null, paths, basis: h.basis,
+      note: 'هذا قول صحابي (أثر)، لا حديث مرفوع إلى النبي ﷺ؛ والحكم المعروض لأقرب رواية وُجدت، ويُراجع فيه مختص.' };
+  }
 
   // Not found by wording anywhere: preachers often narrate a hadith by its meaning. Look for it
   // by meaning — shown for review only, never as established, since a different saying can

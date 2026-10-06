@@ -52,6 +52,11 @@ const CASES = [
   { id: 'H15', group: 'حديث', label: 'قدسي بـ«جل وعلى» وتنصيص بمسافات', text: 'ولهذا قال جل وعلى في الحديث القدسي " أني حرمت الظلم على نفسي " فكيف نظلم', expect: POS, claims: 1 },
   { id: 'H16', group: 'حديث', label: 'حديث نُسب إلى القرآن', text: 'حيث يقول الله تعالى " من اقتطع حق امرء مسلم بغير حق "', expect: ['exact', 'variant', 'weak', 'review'], quotedAsAyah: true },
 
+  { id: 'A1', group: 'حديث', label: 'قول صحابي لا يُعرض حديثًا', text: 'قال عبد الله بن عمر رضي الله عنهما: "الإيمان في قلوبهم أعظم من الجبال"', expect: ['review', 'not_found'], athar: true },
+  { id: 'A2', group: 'حديث', label: 'عبارات سردية لا تُعدّ حديثًا', text: 'ولما مات النبي صلى الله عليه وسلم واضطرب الناس، قال عبد الله بن عمر رضي الله عنهما كلمته.', expect: ['no_claim'] },
+
+  { id: 'A3', group: 'حديث', label: 'حديث عن صحابية ليس قول صحابي', text: 'قال صلى الله عليه وسلم عن الصديقة بنت الصديق رضي الله عنها: «فضل عائشة على النساء كفضل الثريد على سائر الطعام»', expect: POS, notAthar: true },
+
   // ── المحتوى المترجم ───────────────────────────────────
   { id: 'E1', group: 'مترجم', label: 'صيغة أخرى للمعنى (لا جزم بالترجمة)', text: 'The Prophet (ﷺ) said: "Deeds are judged by their intentions"', expect: ['review'] },
   { id: 'E2', group: 'مترجم', label: 'تشابه متوسط', text: 'The Prophet (ﷺ) said: "Actions are only by intentions"', expect: ['review'] },
@@ -94,6 +99,8 @@ async function run() {
     if (tc.misattributed && !c?.misattributed) problems.push('لم يكشف النسبة الخاطئة');
     if (tc.twoPaths && c?.paths !== 2) problems.push(`مسارات: ${c?.paths ?? 0}`);
     if (tc.claims && r?.claims?.length !== tc.claims) problems.push(`عدد الادعاءات ${r?.claims?.length} بدل ${tc.claims}`);
+    if (tc.athar && !c?.athar) problems.push('لم يُميّز أنه قول صحابي');
+    if (tc.notAthar && c?.athar) problems.push('عُدّ قول صحابي وهو حديث');
     if (tc.quotedAsAyah && !c?.quotedAsAyah) problems.push('لم يكشف أنه حديث نُسب إلى القرآن');
     if (tc.heId && String(c?.hadeethenc?.id) !== tc.heId) problems.push(`الحديث المختار #${c?.hadeethenc?.id ?? '—'} بدل #${tc.heId}`);
     rows.push({ tc, c, status, ms, pass: problems.length === 0, note: err || problems.join('؛ ') });

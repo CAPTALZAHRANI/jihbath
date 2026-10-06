@@ -177,6 +177,8 @@ export async function verifyByMeaning(quote) {
   };
 }
 
+const STOCK = new Set(['صلي', 'الله', 'عليه', 'وسلم', 'رضي', 'عنه', 'عنهما', 'عنها', 'عنهم', 'النبي', 'رسول', 'لرسول', 'برسول', 'عبد', 'بن', 'ابن', 'ابي', 'بنت', 'عن', 'قال', 'قالت', 'يقول', 'سمعت', 'مات', 'كان', 'ﷺ', 'ان', 'في', 'من', 'علي', 'الي', 'ما', 'لا', 'و', 'ثم', 'حدثنا', 'اخبرنا']);
+
 // Hadiths written into the text with no «قال رسول الله ﷺ»: verbatim runs of 6+ words
 // matching a hadith text in HadeethEnc (short stock phrases are not flagged).
 export function findUnmarkedHadiths(text, taken = []) {
@@ -184,6 +186,10 @@ export function findUnmarkedHadiths(text, taken = []) {
   const words = wordsWithOffsets(text);
   const out = [];
   for (const [a, b] of findRuns(words, IDX.grams, 4, 6)) {
+    // Narrative stock phrases recur verbatim across hadith texts («مات النبي صلى الله عليه وسلم»,
+    // «عبد الله بن عمر رضي الله عنهما»): only words beyond them can make a run a quotation.
+    const meaningful = words.slice(a, b).filter((w) => !STOCK.has(w.norm));
+    if (meaningful.length < 6) continue;
     const start = words[a].start, end = words[b - 1].end;
     if (taken.some(([x, y]) => start < y && end > x)) continue;
     out.push({ type: 'hadith', unmarked: true, text: text.slice(start, end), start, end });
