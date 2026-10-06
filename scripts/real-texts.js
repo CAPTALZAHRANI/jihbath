@@ -14,7 +14,9 @@ import { lcsPairs } from '../server/lib/align.js';
 
 const DIR = 'doc/real-texts';
 const LABEL = { athar: 'قول صحابي', exact: 'مطابق لمصدره', variant: 'وُجد بلفظ مختلف', weak: 'نُقل تضعيفه', not_found: 'لم يُعثر عليه', review: 'يحتاج مراجعة مختص', refer: 'يُحال', unavailable: 'تعذّر' };
-const issue = (c) => c.status !== 'exact' || c.merged || c.misattributed;
+// A translated quote whose wording differs from the approved translations is another rendering
+// of the same meaning, not an error in the text: it is reported, but not counted as a problem.
+const issue = (c) => (c.status !== 'exact' && !(c.translated && c.kind === 'quran' && c.status === 'variant')) || c.merged || c.misattributed;
 
 loadQuran(); loadQuranEnc(); loadHadeethEnc();
 const files = fs.readdirSync(DIR).filter((f) => f.endsWith('.txt')).sort();
@@ -22,12 +24,14 @@ if (!files.length) { console.error(`no texts in ${DIR}`); process.exit(1); }
 
 let md = `# جِهْبَاذ على نصوص حقيقية منشورة\n\nتاريخ التشغيل: ${new Date().toISOString().slice(0, 16).replace('T', ' ')} (UTC) · الأمر: \`node scripts/real-texts.js\`\n\n`;
 md += 'المقارنة مع الممارسة الحالية: لكل اقتباس، ماذا يُرجع **البحث المباشر في الدرر السنية** عن الاقتباس كما كتبه الكاتب؟ (عدد النتائج، وحكم أول نتيجة).\n\n';
-const total = { texts: 0, claims: 0, issues: 0, unmarked: 0, quran: 0, dorarNone: 0, issuesDorarNone: 0 };
+const total = { texts: 0, claims: 0, translated: 0, issues: 0, unmarked: 0, quran: 0, dorarNone: 0, issuesDorarNone: 0 };
 
 for (const f of files) {
   const raw = fs.readFileSync(path.join(DIR, f), 'utf8');
-  const [head, ...body] = raw.split(/^---\s*$/m);
-  const text = body.join('---').trim();
+  // header («المصدر: …», «النوع: …») and «---» are optional: without them, the whole file is the text
+  const parts = raw.split(/^---\s*$/m);
+  const head = parts.length > 1 ? parts[0] : '';
+  const text = (parts.length > 1 ? parts.slice(1).join('---') : raw).trim();
   if (text.split(/\s+/).length < 5) { console.log(`\n(skipped ${f}: empty)`); continue; }
   const source = (head.match(/المصدر:\s*(.+)/) || [])[1]?.trim() || '';
   const kind = (head.match(/النوع:\s*(.+)/) || [])[1]?.trim() || '';
@@ -40,10 +44,14 @@ for (const f of files) {
     i++; total.claims++;
     if (c.unmarked) total.unmarked++;
     if (c.kind === 'quran') total.quran++;
+    if (c.translated) total.translated++;
     const isIssue = issue(c);
     if (isIssue) total.issues++;
     let dorar = '—';
-    if (c.kind !== 'refer') {
+    // Dorar searches Arabic only: for translated quotes there is no direct-search baseline,
+    // so they are left out of the comparison counts instead of counting as Dorar «failures».
+    if (c.translated) dorar = 'لا ينطبق (الدرر تبحث في النصوص العربية فقط)';
+    else if (c.kind !== 'refer') {
       try {
         const d = await searchDorar(c.text);
         const first = d.items[0];
@@ -67,11 +75,12 @@ for (const f of files) {
 
 md += `## الخلاصة\n\n| المؤشر | القيمة |\n| --- | --- |\n`;
 md += `| النصوص | ${total.texts} |\n| الادعاءات التي استخرجها جِهْبَاذ | ${total.claims} |\n`;
+md += `| منها نصوص مترجمة (خارج المقارنة مع الدرر) | ${total.translated} |\n`;
 md += `| منها آيات (البحث في الدرر لا يتحقق من الآيات أصلًا) | ${total.quran} |\n`;
 md += `| منها مكتوبة دون أي علامة أو نسبة (يحتاج القارئ أن ينتبه لها بنفسه) | ${total.unmarked} |\n`;
 md += `| ادعاءات فيها مشكلة كشفها جِهْبَاذ (لفظ مختلف، تضعيف، دمج، نسبة خاطئة، مراجعة، أو لم يُعثر عليه) | ${total.issues} |\n`;
 md += `| منها لم تكن أول نتيجة في البحث المباشر في الدرر هي النص المقتبس | ${total.issuesDorarNone} |\n| كل الادعاءات التي لم تكن أول نتيجة لها في الدرر هي النص المقتبس | ${total.dorarNone} |\n\n`;
-md += `## حدود دلالة هذه النتائج\n\n- عدد النصوص صغير (${total.texts})، واختيرت يدويًا، فلا تُعمَّم نسبها على كل المحتوى الدعوي.\n- «البحث المباشر في الدرر» يمثل خطوة واحدة من التحقق اليدوي؛ المحقق الخبير يعيد صياغة البحث ويراجع المصحف وكتب التخريج، فيصل إلى أكثر مما تُظهره هذه المقارنة.\n- أحكام جِهْبَاذ منقولة من المصادر، ولم تُراجع نتائج هذه النصوص من مختص في علوم الحديث.\n`;
+md += `## حدود دلالة هذه النتائج\n\n- عدد النصوص صغير (${total.texts})، واختيرت يدويًا، فلا تُعمَّم نسبها على كل المحتوى الدعوي.\n- «البحث المباشر في الدرر» يمثل خطوة واحدة من التحقق اليدوي؛ المحقق الخبير يعيد صياغة البحث ويراجع المصحف وكتب التخريج، فيصل إلى أكثر مما تُظهره هذه المقارنة.\n- أحكام جِهْبَاذ منقولة من المصادر، ولم تُراجع نتائج هذه النصوص من مختص في علوم الحديث.\n- الآية المترجمة بصياغة تخالف الترجمات المعتمدة تُعرض «بلفظ مختلف» مع ردّها إلى أصلها العربي، لكنها لا تُعدّ مشكلة في النص: فهي ترجمة أخرى للمعنى نفسه.\n- النصوص المترجمة خارج المقارنة مع الدرر، لأن الدرر لا تبحث فيها؛ فلا تُحسب لصالح جِهْبَاذ.\n`;
 fs.writeFileSync('doc/real-texts-results.md', md);
 console.log(`\n📄 doc/real-texts-results.md`);
 console.log(total);
