@@ -58,8 +58,12 @@ export function extractClaims(text, { max = 12 } = {}) {
       if (words(q) < (type === 'unknown' ? 3 : 2)) continue;
       const start = src.indexOf(quote, m.index);
       const end = start + quote.length;
-      if (taken.some(([a, b]) => start < b && end > a)) continue;
-      taken.push([start, end]);
+      // The whole match counts — attribution phrase included. Otherwise a later pattern can
+      // re-read part of an earlier attribution as a quote: after «قال جل وعلا في الحديث القدسي
+      // "…"» was taken as a hadith qudsi, the Quran pattern took «في الحديث القدسي» as an ayah.
+      const mStart = m.index, mEnd = m.index + m[0].length;
+      if (taken.some(([a, b]) => mStart < b && mEnd > a)) continue;
+      taken.push([mStart, mEnd]);
       claims.push({ type, text: q, start, end, ...(attr ? { attrStart: m.index } : {}) });
     }
   }

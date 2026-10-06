@@ -57,12 +57,13 @@ function rewrite(c) {
     case 'sahihayn':
     case 'sahihayn_he': {
       const words = c.status === 'variant' ? sourceWords(c.hadith?.lead?.ops) : null;
-      return { text: words, note: sahihaynCitation(c) };
+      // a hadith has several narrations: the author's wording is never replaced
+      return { note: `${sahihaynCitation(c)}${words ? `، وفي روايته: «${words}»` : ''}` };
     }
     case 'graded_authentic': {
       const l = c.hadith?.lead;
       const words = c.status === 'variant' ? sourceWords(l?.ops) : null;
-      return { text: words, note: `${l?.source || ''}، ${verdict(l)}` };
+      return { note: `${l?.source || ''}، ${verdict(l)}${words ? `، وفي روايته: «${words}»` : ''}` };
     }
     case 'hadeethenc':
       return { note: sahihaynCitation(c) || 'موسوعة الأحاديث النبوية' };
@@ -126,12 +127,16 @@ function fixHadithQuotedAsAyah(text, c) {
   while (attrEnd > c.attrStart && /[\s:：]/.test(text[attrEnd - 1])) attrEnd--;
   const original = text.slice(c.attrStart, attrEnd).trim();
   const lead = /^و/.test(original) ? 'و' : '';
-  const words = c.status === 'variant' ? sourceWords(c.hadith?.lead?.ops) : null;
-  const body = words || text.slice(c.start, c.end).trim();
+  const l = c.hadith?.lead;
+  const words = c.status === 'variant' ? sourceWords(l?.ops) : null;
+  const body = text.slice(c.start, c.end).trim(); // the author's wording stays
   const close = closerAfter(text, c.end);
-  const cite = sahihaynCitation(c) || 'موسوعة الأحاديث النبوية';
+  const verdictOf = (m) => m ? `«${String(m.grade || '').replace(/^\[(.*)\]$/, '$1')}» — ${m.muhaddith || ''}`.trim() : '';
+  const cite = sahihaynCitation(c)
+    || (c.basis === 'graded_authentic' && l ? `${l.source}، ${verdictOf(l)}` : '')
+    || (c.basis === 'hadeethenc' ? 'موسوعة الأحاديث النبوية' : '');
   return { from: c.attrStart, to: close, at: null, note: null,
-    replacement: `${lead}قال رسول الله ﷺ: «${body}» [${cite} — صُحّحت النسبة، وكان في الأصل: «${original}»]` };
+    replacement: `${lead}قال رسول الله ﷺ: «${body}» [${cite}${words ? `، وفي روايته: «${words}»` : ''} — صُحّحت النسبة، وكان في الأصل: «${original}»]` };
 }
 
 export function buildDocumented(source, claims) {

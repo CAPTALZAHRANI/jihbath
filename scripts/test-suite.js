@@ -49,6 +49,9 @@ const CASES = [
 
   { id: 'H14', group: 'حديث', label: 'حديث مروي بالمعنى (للمراجعة لا للجزم)', text: 'قال رسول الله ﷺ: «الذي يدل غيره على الخير يكون له مثل أجر من فعله»', expect: ['review', 'exact', 'variant'], heId: '5354' },
 
+  { id: 'H15', group: 'حديث', label: 'قدسي بـ«جل وعلى» وتنصيص بمسافات', text: 'ولهذا قال جل وعلى في الحديث القدسي " أني حرمت الظلم على نفسي " فكيف نظلم', expect: POS, claims: 1 },
+  { id: 'H16', group: 'حديث', label: 'حديث نُسب إلى القرآن', text: 'حيث يقول الله تعالى " من اقتطع حق امرء مسلم بغير حق "', expect: ['exact', 'variant', 'weak', 'review'], quotedAsAyah: true },
+
   // ── المحتوى المترجم ───────────────────────────────────
   { id: 'E1', group: 'مترجم', label: 'صيغة أخرى للمعنى (لا جزم بالترجمة)', text: 'The Prophet (ﷺ) said: "Deeds are judged by their intentions"', expect: ['review'] },
   { id: 'E2', group: 'مترجم', label: 'تشابه متوسط', text: 'The Prophet (ﷺ) said: "Actions are only by intentions"', expect: ['review'] },
@@ -90,6 +93,8 @@ async function run() {
     if (tc.merged && !c?.merged) problems.push('لم يكشف الدمج');
     if (tc.misattributed && !c?.misattributed) problems.push('لم يكشف النسبة الخاطئة');
     if (tc.twoPaths && c?.paths !== 2) problems.push(`مسارات: ${c?.paths ?? 0}`);
+    if (tc.claims && r?.claims?.length !== tc.claims) problems.push(`عدد الادعاءات ${r?.claims?.length} بدل ${tc.claims}`);
+    if (tc.quotedAsAyah && !c?.quotedAsAyah) problems.push('لم يكشف أنه حديث نُسب إلى القرآن');
     if (tc.heId && String(c?.hadeethenc?.id) !== tc.heId) problems.push(`الحديث المختار #${c?.hadeethenc?.id ?? '—'} بدل #${tc.heId}`);
     rows.push({ tc, c, status, ms, pass: problems.length === 0, note: err || problems.join('؛ ') });
     process.stdout.write(problems.length ? '✗' : '✓');
