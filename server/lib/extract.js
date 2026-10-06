@@ -32,9 +32,10 @@ const PATTERNS = [
   // "في الحديث: ..." / "جاء في الحديث ..."
   { type: 'hadith', re: new RegExp(`(?:في|جاء\\s*في|ورد\\s*في|وفي)\\s*(?:الحديث|الأثر)(?:\\s*الشريف)?\\s*[:：]?\\s*(?:${QUOTED}|${UNTIL_END})`, 'g') },
   // English Quran: "Allah says: ..." / "The Quran says ..."
-  { type: 'quran', re: /(?:(?:Allah|God)(?:\s*\((?:SWT|swt|the Exalted|Exalted|Glorified|subhanahu wa ta'ala)\))?\s+(?:says|said|states)(?:\s+in\s+(?:the\s+)?(?:Holy\s+)?(?:Quran|Qur'an|Qur’an))?|(?:the\s+)?(?:Holy\s+)?(?:Quran|Qur'an|Qur’an)\s+(?:says|states))\s*[:,]?\s*(?:"([^"]{3,600})"|“([^”]{3,600})”|["“]?([^."“”\n]{6,400}))/gi },
+  { type: 'quran', re: /(?:(?:Allah|God)(?:\s*\((?:SWT|swt|the Exalted|Exalted|Glorified|subhanahu wa ta'ala)\))?\s+(?:says|said|states|tells\s+us|tells|mentions|reminds\s+us)(?:\s+in\s+(?:the\s+)?(?:Holy\s+)?(?:Quran|Qur'an|Qur’an))?|(?:the\s+)?(?:Holy\s+)?(?:Quran|Qur'an|Qur’an)\s+(?:says|states|tells\s+us))\s*[:,]?\s*(?:"([^"]{3,600})"|“([^”]{3,600})”|["“]?([^."“”\n]{6,400}))/gi },
   // English: "The Prophet (ﷺ) said: ..." / "Allah's Messenger said ..."
   { type: 'hadith', re: /(?:the\s+)?(?:Prophet(?:\s+Muhammad)?|Messenger\s+of\s+(?:Allah|God)|Allah's\s+Messenger)(?:\s*\((?:ﷺ|peace be upon him|pbuh|saw)\)|\s*ﷺ|,?\s*peace be upon him,?)?\s+(?:said|says|stated)\s*[:,]?\s*(?:"([^"]{3,600})"|“([^”]{3,600})”|["“]?([^."“”\n]{6,400}))/gi },
+  { type: 'hadith', re: /(?:the\s+)?(?:\w+\s+)?hadith\s+of\s+(?:the\s+)?(?:Prophet(?:\s+Muhammad)?|Messenger\s+of\s+(?:Allah|God))(?:\s*\((?:ﷺ|peace be upon him|pbuh|saw)\)|\s*ﷺ)?\s*[:,]\s*(?:"([^"]{3,600})"|“([^”]{3,600})”|["“]?([^."“”\n]{6,400}))/gi },
   // any other quotation of 3+ words: type unknown, checked against both
   { type: 'unknown', re: /«([^»]{3,600})»|"([^"]{3,600})"|“([^”]{3,600})”/g },
 ];
@@ -59,13 +60,19 @@ export function extractClaims(text, { max = 12 } = {}) {
     const verbs = [...w.matchAll(/(?:^|\s)(?:[وف])?(?:قال|قالت|يقول|تقول)(?=\s|$)/g)];
     const last = verbs[verbs.length - 1];
     if (last && PROPHET_SPEAKS.test(w.slice(last.index + last[0].length))) return false;
+    // the companion narrates the Prophet ﷺ speaking, even with words in between
+    // («عن أنس رضي الله عنه قال: سمعت النبي ﷺ وهو يقول: "…"») — a marfu' hadith, not an athar
+    const marks = [...w.matchAll(/رضي\s*الله\s*عنه(?:ما|ا|م)?|الصديق|الفاروق|أمير\s*المؤمنين/g)];
+    const after = marks.length ? w.slice(marks[marks.length - 1].index) : w;
+    if (/(?:رسول\s*الله|النبي|نبينا|المصطفى)(?:\s*(?:ﷺ|صلى\s*الله\s*عليه\s*وسلم))?[^«»"“”.]{0,20}?(?:قال|يقول|يخطب)/.test(after)) return false;
     return true;
   };
   const prophetSpeaksBefore = (i) => {
     const w = src.slice(Math.max(0, i - 120), i).replace(/[\u064B-\u0652]/g, '');
     const verbs = [...w.matchAll(/(?:^|\s)(?:[وف])?(?:قال|يقول)(?=\s|$)/g)];
     const last = verbs[verbs.length - 1];
-    return !!last && PROPHET_SPEAKS.test(w.slice(last.index + last[0].length));
+    if (last && PROPHET_SPEAKS.test(w.slice(last.index + last[0].length))) return true;
+    return /(?:رسول\s*الله|النبي|نبينا|المصطفى)(?:\s*(?:ﷺ|صلى\s*الله\s*عليه\s*وسلم))?[^«»"“”.]{0,20}?(?:قال|يقول|يخطب)[^«»"“”.]{0,6}$/.test(w);
   };
   for (const { type, re, attr } of PATTERNS) {
     re.lastIndex = 0;
@@ -78,6 +85,9 @@ export function extractClaims(text, { max = 12 } = {}) {
       if (words(q) < (type === 'unknown' ? 3 : 2)) continue;
       const start = src.indexOf(quote, m.index);
       const end = start + quote.length;
+      // An unquoted capture followed by «: "…"» is a description before the quotation
+      // («قال ﷺ عن الصديقة بنت الصديق رضي الله عنها: «…»»), not the quotation itself
+      if (!'«"“﴿{('.includes(src[start - 1] || '') && /^\s*[:：]?\s*[«"“﴿]/.test(src.slice(end))) continue;
       // The whole match counts — attribution phrase included. Otherwise a later pattern can
       // re-read part of an earlier attribution as a quote: after «قال جل وعلا في الحديث القدسي
       // "…"» was taken as a hadith qudsi, the Quran pattern took «في الحديث القدسي» as an ayah.

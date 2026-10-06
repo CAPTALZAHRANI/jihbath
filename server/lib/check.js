@@ -100,7 +100,7 @@ async function checkClaim(claim) {
     // Per the shari'a mentor: a meaning match must not merge "the hadith is established" with
     // "this translation is accurate". The original's grade is shown from its source; whether the
     // English wording is a faithful rendering is left to a qualified reviewer.
-    if (m.status === 'meaning' || m.status === 'meaning_possible') {
+    if ((m.status === 'meaning' || m.status === 'meaning_possible') && claim.type !== 'unknown') {
       return { ...out, status: 'review', kind: 'hadith', translated: true, meaning: true, closeness: m.status === 'meaning' ? 'high' : 'medium', hadeethenc: m,
         note: m.status === 'meaning'
           ? 'النص الإنجليزي ترجمة لمعنى الحديث أدناه بحسب التشابه، والحكم المعروض حكم الأصل العربي من مصدره؛ أما دقة هذه الترجمة فتحتاج مراجعًا مؤهلًا.'
@@ -109,6 +109,7 @@ async function checkClaim(claim) {
     if (he.status === 'initializing' || m.status === 'initializing') {
       return { ...out, status: 'unavailable', kind: 'hadith', translated: true, note: 'موسوعة الأحاديث النبوية قيد التهيئة على الخادم؛ أعد المحاولة لاحقًا' };
     }
+    if (claim.type === 'unknown') return null; // an unattributed English quote that matches nothing is just prose
     return { ...out, status: 'not_found', kind: 'hadith', translated: true, hadeethenc: he };
   }
 
@@ -205,7 +206,7 @@ export async function checkText(text) {
   claims.sort((a, b) => a.start - b.start);
   const referrals = detectReferrals(text);
   const results = [];
-  for (const c of claims) results.push(await checkClaim(c)); // sequential: gentle on Dorar
+  for (const c of claims) { const r = await checkClaim(c); if (r) results.push(r); } // sequential: gentle on Dorar
   // Level (د): referred, never answered; kept in reading order with the claims
   results.push(...referrals.filter((r) => !claims.some((c) => r.start >= c.start && r.end <= c.end)));
   results.sort((a, b) => a.start - b.start);

@@ -57,6 +57,8 @@ const CASES = [
 
   { id: 'A3', group: 'حديث', label: 'حديث عن صحابية ليس قول صحابي', text: 'قال صلى الله عليه وسلم عن الصديقة بنت الصديق رضي الله عنها: «فضل عائشة على النساء كفضل الثريد على سائر الطعام»', expect: POS, notAthar: true },
 
+  { id: 'A4', group: 'حديث', label: 'صحابي يروي النبي ﷺ متكلّمًا بفاصل', text: 'عن أنس رضي الله عنه قال: سمعت النبي ﷺ وهو يقول: «اللهم إني أعوذ بك من الهم والحزن»', expect: POS, notAthar: true },
+
   // ── المحتوى المترجم ───────────────────────────────────
   { id: 'E1', group: 'مترجم', label: 'صيغة أخرى للمعنى (لا جزم بالترجمة)', text: 'The Prophet (ﷺ) said: "Deeds are judged by their intentions"', expect: ['review'] },
   { id: 'E2', group: 'مترجم', label: 'تشابه متوسط', text: 'The Prophet (ﷺ) said: "Actions are only by intentions"', expect: ['review'] },
