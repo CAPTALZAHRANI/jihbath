@@ -152,6 +152,7 @@ function Claim({ c }) {
   const h = c.kind === 'hadith' && !c.meaning ? HADITH[c.basis] : null;
   const label = c.misattributed && c.status === 'variant' ? 'نصّه ثابت، ونسبته خاطئة'
     : c.merged ? ((c.merged.parts?.length || 2) > 2 ? `${c.merged.parts.length} آيات دُمجت في اقتباس واحد` : 'آيتان دُمجتا في اقتباس واحد')
+    : c.arabicMeaning ? 'قريب في معناه من حديث: يحتاج مراجعة'
     : c.meaning ? (c.closeness === 'high' ? 'يوافق معنى حديث: الترجمة تحتاج مراجعة' : 'قريب في المعنى: يحتاج مراجعة')
     : Array.isArray(h) ? h[c.status === 'exact' ? 0 : 1]
     : h || STATUS[c.status];

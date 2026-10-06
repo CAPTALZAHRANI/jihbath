@@ -18,10 +18,13 @@ const cases = [
   ['fabricated', 'Love of one\u2019s homeland is part of faith'],
   ['unrelated', 'Drink plenty of water every morning for good health'],
 ];
-for (const [kind, q] of cases) {
+// Any quote given on the command line replaces the built-in cases:
+//   node scripts/test-meaning.js "الذي يدل غيره على الخير يكون له مثل أجر من فعله"
+const custom = process.argv.slice(2).filter(Boolean);
+for (const [kind, q] of custom.length ? custom.map((t) => ['custom', t]) : cases) {
   const top = await searchByMeaning(q, 3);
   const v = await verifyByMeaning(q);
-  console.log(`\n[${kind}] ${q}\n  → ${v.status}${v.similarity ? ' · ' + v.similarity : ''}${v.shared ? ' · shared: ' + (v.shared.join(', ') || '—') : ''}`);
+  console.log(`\n[${kind}] ${q}\n  → ${v.status}${v.similarity ? ' · ' + v.similarity : ''}${v.shared ? ' · shared: ' + (v.shared.join(', ') || '—') : ''}${v.closest ? ' · closest ' + JSON.stringify(v.closest) : ''}${v.id ? `\n  ✔ chosen #${v.id} ${byId.get(v.id)?.title?.slice(0, 70) || ''}` : ''}`);
   for (const t of top || []) console.log(`    ${t.similarity}  #${t.id}  ${byId.get(t.id)?.title?.slice(0, 60) || ''}\n           ↳ ${String(t.chunk || '').slice(0, 110)}`);
   if (v.en?.text) console.log(`  official: ${v.en.text.slice(0, 160)}`);
 }

@@ -4,7 +4,6 @@
 // official text, translation and grade are then shown exactly as published.
 import fs from 'node:fs';
 import path from 'node:path';
-import { normalizeWord } from './arabic.js';
 
 const BASE = path.resolve(process.env.HADEETHENC_DIR || 'data');
 const EMB = path.join(BASE, 'index/hadeethenc-emb.bin');
@@ -37,13 +36,6 @@ export async function embed(texts, prefix) {
 }
 
 // The words of the hadith itself, without the chain ("عن فلان قال: «...»")
-// All the Prophet's words in a hadith, not only the first «…»: a hadith may quote him
-// twice («ما عندي» … «من دل على خير فله مثل أجر فاعله»).
-export function hadithWords(text) {
-  const parts = [...String(text || '').matchAll(/«([^»]{2,})»/g)].map((m) => m[1]);
-  return parts.length ? parts.join(' ') : String(text || '');
-}
-
 export function hadithCore(text) {
   const m = String(text || '').match(/«([^»]{5,})»/) || String(text || '').match(/"([^"]{5,})"/) || String(text || '').match(/“([^”]{5,})”/);
   return (m ? m[1] : String(text || '')).slice(0, 600);
@@ -60,15 +52,13 @@ export function loadSemantic() {
 
 export const semanticReady = () => !!VEC;
 
-export async function searchByMeaning(quote, k = 3, { arabicOnly = false } = {}) {
+export async function searchByMeaning(quote, k = 3) {
   if (!VEC) return null;
   const { data: q } = await embed([quote], 'query');
   const { ids, dim, data, chunks } = VEC;
-  const AR = /[\u0600-\u06FF]/;
   // best chunk per hadith
   const best = new Map();
   for (let i = 0; i < ids.length; i++) {
-    if (arabicOnly && !AR.test(chunks[i] || '')) continue;
     let s = 0;
     const off = i * dim;
     for (let d = 0; d < dim; d++) s += q[d] * data[off + d];
@@ -77,7 +67,7 @@ export async function searchByMeaning(quote, k = 3, { arabicOnly = false } = {})
   }
   return [...best.entries()]
     .sort((a, b) => b[1].s - a[1].s)
-    .slice(0, k === Infinity ? undefined : k)
+    .slice(0, k)
     .map(([id, v]) => ({ id, similarity: Number(v.s.toFixed(3)), chunk: v.chunk }));
 }
 
@@ -87,29 +77,8 @@ const STOP = new Set('the and that this with from have will been were they them 
 const stem = (w) => w.replace(/(ings|ing|ed|es|s)$/, '');
 const content = (t) => new Set(String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length >= 4 && !STOP.has(w)).map(stem));
 
-// Arabic witness: normalized content words (3+ letters, particles excluded); the leading «و/ف»
-// and the article are stripped so «والخير» and «الخير» count as the same word.
-const AR_STOP = new Set('الذي التي الذين هذا هذه ذلك تلك على إلى عن مع من في ما لا لم لن قد كان كانت يكون إن أن أو ثم بل كل هو هي هم أنت أنا نحن الله رسول صلى عليه وسلم قال يقول له لها لهم غير بعض أي إذا إذ حتى عند'.split(' ').map(normalizeWord));
-// Light stemming for matching only: «يدل»≈«دل», «فعله»≈«فعل», «والخير»≈«خير».
-const arStem = (w) => {
-  let x = w;
-  x = x.replace(/^[وف](?=..)/, '');
-  x = x.replace(/^(?:بال|لل|ال)(?=..)/, '');
-  x = x.replace(/^[بل](?=...)/, '');
-  if (x.length >= 3) x = x.replace(/^[يتنا](?=..)/, '');
-  x = x.replace(/(?:هما|هم|ها|كم|ون|ين|ات|ه|ة)$/, (m) => (x.length - m.length >= 2 ? '' : m));
-  return x;
-};
-const arContent = (t) => new Set(String(t || '').split(/\s+/).map(normalizeWord)
-  .filter((w) => w.length >= 2 && !AR_STOP.has(w))
-  .map(arStem)
-  .filter((w) => w.length >= 2 && !AR_STOP.has(w)));
-
-export { arContent };
-
 export function sharedWords(quote, chunk) {
-  const arabic = /[\u0600-\u06FF]/.test(quote);
-  const a = arabic ? arContent(quote) : content(quote), b = arabic ? arContent(chunk) : content(chunk);
+  const a = content(quote), b = content(chunk);
   return [...a].filter((w) => b.has(w));
 }
 

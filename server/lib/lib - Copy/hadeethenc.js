@@ -7,7 +7,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { tokenize, wordsWithOffsets, findRuns } from './arabic.js';
 import { lcsPairs, diffOps } from './align.js';
-import { loadSemantic, semanticReady, searchByMeaning, meaningLevel, sharedWords, arContent, hadithWords } from './semantic.js';
+import { loadSemantic, semanticReady, searchByMeaning, meaningLevel, sharedWords } from './semantic.js';
 
 const BASE = path.resolve(process.env.HADEETHENC_DIR || 'data');
 const FILE = path.join(BASE, 'index/hadeethenc.json');
@@ -127,41 +127,10 @@ export function verifyHadeethEnc(quote, { minCoverage = 0.6 } = {}) {
 export async function verifyByMeaning(quote) {
   if (!IDX) return { status: state === 'initializing' ? 'initializing' : 'unavailable' };
   if (!semanticReady()) return { status: 'initializing' };
-  const arabic = /[\u0600-\u06FF]/.test(quote);
-  let top, shared, level, hits;
-  if (arabic) {
-    // Arabic↔Arabic similarities from this model bunch up (unrelated sentences reach ~0.78),
-    // so wording leads: every hadith sharing 2+ content words with the quote (against its full
-    // text, words weighted by rarity), then meaning breaks ties between close candidates.
-    if (!IDX.arSets) {
-      IDX.arSets = new Map(IDX.items.map((h) => [h.id, arContent(hadithWords(h.text))]));
-      IDX.arDf = new Map();
-      for (const set of IDX.arSets.values()) for (const w of set) IDX.arDf.set(w, (IDX.arDf.get(w) || 0) + 1);
-    }
-    const qWords = [...arContent(quote)];
-    const N = IDX.items.length;
-    const idf = (w) => Math.log(N / (1 + (IDX.arDf.get(w) || 0)));
-    const lexical = [];
-    for (const [id, set] of IDX.arSets) {
-      const sh = qWords.filter((w) => set.has(w));
-      if (sh.length >= 2) lexical.push({ id, shared: sh, lex: sh.reduce((t, w) => t + idf(w), 0) });
-    }
-    if (!lexical.length) return { status: 'not_found', closest: null };
-    const sims = new Map(((await searchByMeaning(quote, Infinity, { arabicOnly: true })) || []).map((x) => [x.id, x]));
-    const ranked = lexical
-      .map((x) => ({ ...x, similarity: sims.get(x.id)?.similarity || 0, chunk: sims.get(x.id)?.chunk || '' }))
-      .map((x) => ({ ...x, score: x.lex + 4 * x.similarity }))
-      .sort((a, b) => b.score - a.score);
-    top = ranked[0];
-    shared = top.shared;
-    level = top.similarity >= 0.8 ? 'strong' : 'possible';
-    hits = ranked.slice(0, 3);
-  } else {
-    hits = await searchByMeaning(quote, 3);
-    top = hits?.[0];
-    shared = top ? sharedWords(quote, top.chunk) : [];
-    level = top ? meaningLevel(top.similarity, shared) : 'none';
-  }
+  const hits = await searchByMeaning(quote, 3);
+  const top = hits?.[0];
+  const shared = top ? sharedWords(quote, top.chunk) : [];
+  const level = top ? meaningLevel(top.similarity, shared) : 'none';
   if (level === 'none') return { status: 'not_found', closest: top || null };
   const h = IDX.byId.get(top.id);
   return {

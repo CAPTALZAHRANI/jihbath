@@ -58,6 +58,7 @@ function rewrite(c) {
     case 'disputed':
       return { note: '⚠ اختلفت أحكام العلماء فيه: يُراجع مختص' };
     default:
+      if (c.arabicMeaning) return { note: '⚠ لم يُعثر على لفظه، وهو قريب في معناه من حديث في موسوعة الأحاديث النبوية: يُراجع مختص' };
       if (c.meaning) return { note: '⚠ meaning resembles a hadith; the translation needs review' };
       return { note: '⚠ يُراجع مختص' };
   }

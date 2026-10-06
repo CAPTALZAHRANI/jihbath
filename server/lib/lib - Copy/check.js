@@ -153,18 +153,6 @@ async function checkClaim(claim) {
   const heFound = he.status === 'exact' || he.status === 'variant';
   const paths = [h.status !== 'not_found' && h.status !== 'unavailable', heFound].filter(Boolean).length;
 
-  // Not found by wording anywhere: preachers often narrate a hadith by its meaning. Look for it
-  // by meaning — shown for review only, never as established, since a different saying can
-  // resemble a hadith in meaning (the shari'a mentor's caution applies here too).
-  if ((h.status === 'not_found' || h.status === 'unavailable') && !heFound) {
-    const m = await verifyByMeaning(claim.text);
-    if (m.status === 'meaning' || m.status === 'meaning_possible') {
-      return { ...out, status: 'review', kind: 'hadith', meaning: true, arabicMeaning: true, hadith: h, hadeethenc: m,
-        closeness: m.status === 'meaning' ? 'high' : 'medium',
-        note: 'لم يُعثر على هذا اللفظ في المصادر، وهو قريب في معناه من الحديث أدناه؛ فقد يكون مرويًّا بالمعنى، وقد يكون قولًا آخر يشبهه. والفصل فيه لمختص.' };
-    }
-  }
-
   // Dorar unreachable or silent, but HadeethEnc (authentic-only collection) has it
   // HadeethEnc's own takhrij is a sourced fact: if it attributes the hadith to the Sahihayn,
   // that settles a case where Dorar's first results disagree (e.g. weak side-chains).
